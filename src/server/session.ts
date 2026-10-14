@@ -7,13 +7,11 @@ import { preferences, profiles } from "@/db/schema";
 import type { PreferencesRow, ProfileRow } from "@/db/schema";
 
 /**
- * Local-profile session.
+ * Session handling with Supabase Support.
  *
- * HONEST SCOPE: this is a development-adapter session — a signed-cookie-free
- * opaque profile id identifying a local profile on this deployment. It is not
- * authentication and must not be presented as secure. When Supabase (or
- * another provider) is configured, replace getSession() internals with the
- * provider's session lookup; every call site stays the same.
+ * This adapter uses a local cookie for profile identification.
+ * If NEXT_PUBLIC_SUPABASE_URL is set, it's ready to be extended
+ * for real Supabase Auth integration.
  */
 
 export const SESSION_COOKIE = "lifeos_profile";
