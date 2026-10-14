@@ -2,15 +2,30 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
 import { listProfiles } from "@/server/data";
 import { ProfileGate } from "@/components/welcome/ProfileGate";
+import { DbSetupCard } from "@/components/welcome/DbSetupCard";
 import { Logo, Wordmark } from "@/components/Logo";
 import { ListChecks, Lock, Moon, Sprout } from "lucide-react";
+import {
+  classifyDatabaseIssue,
+  getDatabaseStatus,
+} from "@/server/runtime-status";
 
 export const dynamic = "force-dynamic";
 
 export default async function WelcomePage() {
   const session = await getSession();
   if (session) redirect("/");
-  const existing = await listProfiles();
+
+  let existing: Array<{ id: string; name: string }> = [];
+  let dbIssue: ReturnType<typeof classifyDatabaseIssue> | null = null;
+
+  try {
+    const profiles = await listProfiles();
+    existing = profiles.map((p) => ({ id: p.id, name: p.name }));
+  } catch (error) {
+    console.error("[lifeos] welcome page database check failed:", error);
+    dbIssue = classifyDatabaseIssue(error);
+  }
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
@@ -63,7 +78,11 @@ export default async function WelcomePage() {
             <Logo size={30} />
             <Wordmark />
           </div>
-          <ProfileGate profiles={existing.map((p) => ({ id: p.id, name: p.name }))} />
+          {dbIssue ? (
+            <DbSetupCard issue={dbIssue} status={getDatabaseStatus()} />
+          ) : (
+            <ProfileGate profiles={existing} />
+          )}
         </div>
       </div>
     </div>

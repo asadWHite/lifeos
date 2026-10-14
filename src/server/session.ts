@@ -49,18 +49,24 @@ export async function getSession(): Promise<SessionContext | null> {
   const store = await cookies();
   const id = store.get(SESSION_COOKIE)?.value;
   if (!id) return null;
-  const rows = await db
-    .select()
-    .from(profiles)
-    .leftJoin(preferences, eq(preferences.profileId, profiles.id))
-    .where(eq(profiles.id, id))
-    .limit(1);
-  if (rows.length === 0) return null;
-  const row = rows[0];
-  return {
-    profile: row.profiles,
-    prefs: row.preferences ?? defaultPrefs(row.profiles.id),
-  };
+
+  try {
+    const rows = await db
+      .select()
+      .from(profiles)
+      .leftJoin(preferences, eq(preferences.profileId, profiles.id))
+      .where(eq(profiles.id, id))
+      .limit(1);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      profile: row.profiles,
+      prefs: row.preferences ?? defaultPrefs(row.profiles.id),
+    };
+  } catch (error) {
+    console.error("[lifeos] session lookup failed:", error);
+    return null;
+  }
 }
 
 /** Redirect variants for route handlers */
