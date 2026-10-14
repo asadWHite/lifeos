@@ -93,7 +93,7 @@ export default async function ProgressPage() {
       {!hasAnyData ? (
         <div className="card mt-7">
           <EmptyState
-            icon={ChartColumn}
+            icon={<ChartColumn size={20} strokeWidth={1.8} />}
             title="Nothing to measure yet"
             body={
               openTasks > 0

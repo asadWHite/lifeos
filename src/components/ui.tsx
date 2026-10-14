@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { Loader2, X, type LucideIcon } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 export function Spinner({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
@@ -34,13 +34,19 @@ export function SectionHeader({
 }
 
 export function EmptyState({
-  icon: Icon,
+  icon,
   title,
   body,
   action,
   compact = false,
 }: {
-  icon: LucideIcon;
+  /**
+   * Pass a rendered element (`icon={<Sprout size={20} strokeWidth={1.8} />}`),
+   * never a component type: this is a Client Component, and server components
+   * cannot hand functions across the boundary — doing so crashed /goals and
+   * /progress with "Functions cannot be passed directly to Client Components".
+   */
+  icon?: ReactNode;
   title: string;
   body?: string;
   action?: ReactNode;
@@ -48,9 +54,11 @@ export function EmptyState({
 }) {
   return (
     <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-6" : "py-12"} px-4`}>
-      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sunken text-ink3">
-        <Icon size={20} strokeWidth={1.8} />
-      </div>
+      {icon ? (
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sunken text-ink3">
+          {icon}
+        </div>
+      ) : null}
       <p className="mt-3 text-[14px] font-semibold text-ink">{title}</p>
       {body ? <p className="mt-1 max-w-xs caption">{body}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}

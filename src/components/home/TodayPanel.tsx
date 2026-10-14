@@ -24,7 +24,7 @@ export function TodayPanel({
       {openTasks.length === 0 ? (
         <div className="pb-2">
           <EmptyState
-            icon={ClipboardList}
+            icon={<ClipboardList size={20} strokeWidth={1.8} />}
             title={completedTasks.length > 0 ? "All done for today" : "Your day is clear"}
             body={
               completedTasks.length > 0

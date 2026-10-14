@@ -28,19 +28,30 @@ createdb app_db
 cp .env.example .env
 # edit DATABASE_URL inside .env
 
-# 3. Install + push schema
+# 3. Install (tables are created automatically on first run, see below)
 npm install
-npx drizzle-kit push --config drizzle.config.json
 
 # 4. Develop
 npm run dev          # http://localhost:3000
 
 # 5. Quality gates
-npx vitest run       # unit tests: sleep math, goals, personalization, onboarding, assistant
+npx vitest run       # unit tests: sleep math, goals, personalization, onboarding, assistant, setup diagnosis
 npm exec tsc -- --noEmit
 npm run build
 npx next start
 ```
+
+### Tables are created for you
+
+On its first query a server process checks whether the LIFEOS tables exist and,
+if the database is empty, creates them with idempotent DDL (`src/db/bootstrap.ts`).
+That means a fresh PostgreSQL or Supabase database works the moment `DATABASE_URL`
+is set — no CLI step, which matters on hosts like Vercel where you cannot run one.
+
+- Set `LIFEOS_AUTO_SCHEMA=false` to switch it off (e.g. the app user may not run DDL).
+- `npm run db:push` still works and stays the source of truth for schema changes:
+  it reports “No changes detected” on a database LIFEOS created itself.
+- `GET /api/health` reports the truth: connectivity **and** table readiness.
 
 First launch creates a **local profile** (name only, no password) — an explicit
 development identity, clearly labelled as such. To enable real authentication
@@ -82,6 +93,8 @@ them, through validated server actions.
 src/
   db/schema.ts          Drizzle tables (profiles, preferences, tasks, goals,
                         sleep_sessions, daily_checkins, assistant_messages)
+  db/bootstrap.ts       Idempotent DDL that creates those tables on first
+                        connect (opt out with LIFEOS_AUTO_SCHEMA=false)
   lib/                  Pure, unit-tested domain logic (sleep math, goal
                         progress, personalization rules, onboarding contract,
                         assistant rules engine, zod validation)

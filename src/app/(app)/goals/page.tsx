@@ -67,7 +67,7 @@ export default async function GoalsPage() {
         {models.length === 0 && (
           <div className="card">
             <EmptyState
-              icon={Sprout}
+              icon={<Sprout size={20} strokeWidth={1.8} />}
               title="No goals yet"
               body="Create a goal — like learning a language, finishing a project, or building a sleep routine — then break it into small tasks. Progress comes from tasks you actually complete or targets you log."
               action={<NewGoalButton primary size="lg" label={<><Plus size={16} /> Create your first goal</>} />}
