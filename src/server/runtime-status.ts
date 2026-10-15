@@ -5,6 +5,7 @@ export type DatabaseStatus = {
   hasSupabaseUrl: boolean;
   hasSupabaseAnonKey: boolean;
   hasSupabaseServiceRole: boolean;
+  hasSupabaseDbPassword: boolean;
 };
 
 export type DatabaseIssue = {
@@ -24,6 +25,7 @@ export function getDatabaseStatus(): DatabaseStatus {
     hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
     hasSupabaseAnonKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
     hasSupabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    hasSupabaseDbPassword: Boolean(process.env.SUPABASE_DB_PASSWORD),
   };
 }
 
@@ -36,13 +38,10 @@ export function classifyDatabaseIssue(error: unknown): DatabaseIssue {
   if (/DATABASE_URL is not configured/i.test(message) || !env.hasDatabaseUrl) {
     return {
       kind: "missing_database_url",
-      title: "Database setup is incomplete",
-      body:
-        env.hasSupabaseUrl || env.hasSupabaseAnonKey || env.hasSupabaseServiceRole
-          ? "Supabase API keys are present, but LIFEOS still needs a PostgreSQL connection string in DATABASE_URL. API keys are not database connection strings."
-          : "LIFEOS needs a PostgreSQL connection string in DATABASE_URL before profiles, tasks, sleep, and goals can be stored.",
+      title: "Database not connected yet",
+      body: "LIFEOS needs a PostgreSQL connection string. Add DATABASE_URL in Vercel → Settings → Environment Variables.",
       hint:
-        "Supabase → Settings → Database → Connection string → URI. Paste that value into Vercel as DATABASE_URL, then redeploy.",
+        "Go to Supabase → Project Settings → Database → Connection string (URI). Copy it. Then paste it into Vercel as DATABASE_URL. Make sure 'Production' is checked. Then click Redeploy.",
     };
   }
 

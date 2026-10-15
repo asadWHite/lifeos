@@ -32,10 +32,10 @@ export function DbSetupCard({
             Runtime env status
           </p>
           <ul className="mt-3 space-y-2 text-[12.5px] text-ink2">
-            <li>DATABASE_URL: {status.hasDatabaseUrl ? "present" : "missing"}</li>
-            <li>NEXT_PUBLIC_SUPABASE_URL: {status.hasSupabaseUrl ? "present" : "missing"}</li>
-            <li>NEXT_PUBLIC_SUPABASE_ANON_KEY: {status.hasSupabaseAnonKey ? "present" : "missing"}</li>
-            <li>SUPABASE_SERVICE_ROLE_KEY: {status.hasSupabaseServiceRole ? "present" : "missing"}</li>
+            <li>DATABASE_URL: {status.hasDatabaseUrl ? "✅ present" : "❌ missing"}</li>
+            <li>SUPABASE_URL: {status.hasSupabaseUrl ? "✅" : "—"}</li>
+            <li>SUPABASE_ANON_KEY: {status.hasSupabaseAnonKey ? "✅" : "—"}</li>
+            <li>SERVICE_ROLE_KEY: {status.hasSupabaseServiceRole ? "✅" : "—"}</li>
           </ul>
         </div>
         <div className="rounded-[12px] border border-line bg-surface p-4">

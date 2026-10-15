@@ -1,9 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, types } from "pg";
 
-// Keep DATE columns as raw "YYYY-MM-DD" strings instead of JS Date objects,
-// which node-postgres would construct in the server's local timezone and
-// could shift the calendar day for users in other timezones.
+// Keep DATE columns as raw "YYYY-MM-DD" strings
 types.setTypeParser(1082, (value: string) => value);
 types.setTypeParser(1114, (value: string) => new Date(value.replace(" ", "T") + "Z"));
 
@@ -12,27 +10,57 @@ const globalForDb = globalThis as typeof globalThis & {
   __lifeosPool?: Pool;
 };
 
+/**
+ * Resolve the database URL from environment variables.
+ * Priority:
+ *  1. DATABASE_URL (explicit, always wins)
+ *  2. Build from Supabase env vars (SUPABASE_DB_URL or NEXT_PUBLIC_SUPABASE_URL + password)
+ *  3. null (no database configured)
+ */
+function resolveDatabaseUrl(): string | null {
+  // 1. Explicit DATABASE_URL
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+
+  // 2. Supabase direct DB URL (some Supabase integrations set this)
+  if (process.env.SUPABASE_DB_URL) {
+    return process.env.SUPABASE_DB_URL;
+  }
+
+  // 3. Try to build from NEXT_PUBLIC_SUPABASE_URL + SUPABASE_DB_PASSWORD
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const dbPassword = process.env.SUPABASE_DB_PASSWORD;
+  if (supabaseUrl && dbPassword) {
+    // Extract project ref from https://abcdefgh.supabase.co
+    const match = supabaseUrl.match(/https?:\/\/([^.]+)\.supabase\.co/);
+    if (match) {
+      const ref = match[1];
+      return `postgresql://postgres.${ref}:${encodeURIComponent(dbPassword)}@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require`;
+    }
+  }
+
+  return null;
+}
+
 function createDb(): NodePgDatabase {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = resolveDatabaseUrl();
   if (!databaseUrl) {
-    // Build-time friendly: this throws only when a query actually runs, not
-    // when the module is imported (so `next build` never fails on a missing
-    // env var — you get this clear message in runtime logs instead).
     throw new Error(
-      "DATABASE_URL is not configured. Add it in your host's environment settings " +
-        "(Vercel → Project → Settings → Environment Variables) or in a local .env file, then redeploy.",
+      "DATABASE_URL is not configured. Add it in Vercel → Settings → Environment Variables, then redeploy.",
     );
   }
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: databaseUrl.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+    max: 5, // serverless-friendly pool size
+    idleTimeoutMillis: 20000,
+    connectionTimeoutMillis: 10000,
+  });
   globalForDb.__lifeosPool = pool;
   return drizzle(pool);
 }
 
-/**
- * Lazily-initialized singleton. The pool is cached on globalThis so serverless
- * warm instances (and dev hot-reloads) reuse connections instead of spawning
- * a new pool per invocation.
- */
 function getDb(): NodePgDatabase {
   const cached = globalForDb.__lifeosDb;
   if (cached) return cached;
@@ -41,7 +69,6 @@ function getDb(): NodePgDatabase {
   return instance;
 }
 
-/** Drop-in export matching `db.select()…` call sites, instantiating on first use. */
 export const db: NodePgDatabase = new Proxy({} as NodePgDatabase, {
   get(_target, prop) {
     const real = getDb();

@@ -9,10 +9,14 @@ import {
   classifyDatabaseIssue,
   getDatabaseStatus,
 } from "@/server/runtime-status";
+import { ensureDatabase } from "@/server/ensure-db";
 
 export const dynamic = "force-dynamic";
 
 export default async function WelcomePage() {
+  // Try to auto-create tables on first visit
+  await ensureDatabase();
+
   const session = await getSession();
   if (session) redirect("/");
 
