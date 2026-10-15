@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/db";
 import { assistantMessages } from "@/db/schema";
+import * as demo from "@/server/demo";
 import type { SessionContext } from "@/server/session";
 import {
   getCheckin,
@@ -90,6 +91,10 @@ export async function saveAssistantMessage(
   content: string,
   origin: "ai" | "rules",
 ): Promise<void> {
+  if (demo.isDemoMode()) {
+    demo.demoSaveMessage(profileId, role, content, origin);
+    return;
+  }
   await db.insert(assistantMessages).values({ profileId, role, content, origin });
 }
 

@@ -5,44 +5,15 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { preferences, profiles } from "@/db/schema";
 import type { PreferencesRow, ProfileRow } from "@/db/schema";
-
-/**
- * Session handling with Supabase Support.
- *
- * This adapter uses a local cookie for profile identification.
- * If NEXT_PUBLIC_SUPABASE_URL is set, it's ready to be extended
- * for real Supabase Auth integration.
- */
+import * as demo from "@/server/demo";
 
 export const SESSION_COOKIE = "lifeos_profile";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export type SessionContext = { profile: ProfileRow; prefs: PreferencesRow };
 
 function defaultPrefs(profileId: string): PreferencesRow {
-  return {
-    profileId,
-    ageGroup: null,
-    lifeStage: null,
-    lifeStageOther: null,
-    interests: [],
-    interestsOther: null,
-    objectives: [],
-    objectivesOther: null,
-    wakeTime: null,
-    bedtime: null,
-    commitments: null,
-    personalTime: null,
-    weekendVaries: null,
-    planningStyle: null,
-    difficulties: [],
-    phoneBeforeBed: null,
-    sleepTargetMinutes: null,
-    hiddenSections: [],
-    theme: "system",
-    onboardingStep: 0,
-    updatedAt: new Date(0),
-  };
+  return demo.demoDefaultPrefs(profileId);
 }
 
 export async function getSession(): Promise<SessionContext | null> {
@@ -50,26 +21,26 @@ export async function getSession(): Promise<SessionContext | null> {
   const id = store.get(SESSION_COOKIE)?.value;
   if (!id) return null;
 
+  if (demo.isDemoMode()) {
+    const p = demo.demoGetProfile(id);
+    if (!p) return null;
+    return { profile: p, prefs: demo.demoGetPrefs(id) };
+  }
+
   try {
     const rows = await db
-      .select()
-      .from(profiles)
+      .select().from(profiles)
       .leftJoin(preferences, eq(preferences.profileId, profiles.id))
-      .where(eq(profiles.id, id))
-      .limit(1);
+      .where(eq(profiles.id, id)).limit(1);
     if (rows.length === 0) return null;
     const row = rows[0];
-    return {
-      profile: row.profiles,
-      prefs: row.preferences ?? defaultPrefs(row.profiles.id),
-    };
+    return { profile: row.profiles, prefs: row.preferences ?? defaultPrefs(row.profiles.id) };
   } catch (error) {
     console.error("[lifeos] session lookup failed:", error);
     return null;
   }
 }
 
-/** Redirect variants for route handlers */
 export async function requireSession(): Promise<SessionContext> {
   const session = await getSession();
   if (!session) redirect("/welcome");
@@ -85,11 +56,9 @@ export async function requireOnboarded(): Promise<SessionContext> {
 export async function setSessionCookie(profileId: string): Promise<void> {
   const store = await cookies();
   store.set(SESSION_COOKIE, profileId, {
-    httpOnly: true,
-    sameSite: "lax",
+    httpOnly: true, sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: COOKIE_MAX_AGE,
+    path: "/", maxAge: COOKIE_MAX_AGE,
   });
 }
 
