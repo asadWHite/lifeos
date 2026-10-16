@@ -23,10 +23,8 @@ import {
 import { personalize } from "@/lib/personalization";
 import { guidanceForAge, type AgeGroup } from "@/lib/sleep";
 import { formatDuration } from "@/lib/time";
-import {
-  completeOnboardingAction,
-  saveOnboardingStepAction,
-} from "@/server/actions/account";
+import { Storage, generateId } from "@/lib/client/storage";
+import { todayInTz } from "@/lib/time";
 import { FieldError, Spinner, Toggle } from "@/components/ui";
 
 type Phase = "questions" | "gate" | "summary";
@@ -116,7 +114,27 @@ export function OnboardingWizard({
   }
 
   async function persist(stepIndex: number) {
-    await saveOnboardingStepAction({ step: stepIndex, values });
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    const patch: any = { onboardingStep: stepIndex + 1 };
+    if (values.ageGroup !== undefined) patch.ageGroup = values.ageGroup ?? null;
+    if (values.lifeStage !== undefined) patch.lifeStage = values.lifeStage ?? null;
+    if (values.lifeStageOther !== undefined) patch.lifeStageOther = values.lifeStageOther ?? null;
+    if (values.interests !== undefined) patch.interests = values.interests;
+    if (values.interestsOther !== undefined) patch.interestsOther = values.interestsOther ?? null;
+    if (values.objectives !== undefined) patch.objectives = values.objectives;
+    if (values.objectivesOther !== undefined) patch.objectivesOther = values.objectivesOther ?? null;
+    if (values.wakeTime !== undefined) patch.wakeTime = values.wakeTime ?? null;
+    if (values.bedtime !== undefined) patch.bedtime = values.bedtime ?? null;
+    if (values.commitments !== undefined) patch.commitments = values.commitments ?? null;
+    if (values.personalTime !== undefined) patch.personalTime = values.personalTime ?? null;
+    if (values.weekendVaries !== undefined) patch.weekendVaries = values.weekendVaries ?? null;
+    if (values.planningStyle !== undefined) patch.planningStyle = values.planningStyle ?? null;
+    if (values.difficulties !== undefined) patch.difficulties = values.difficulties;
+    if (values.phoneBeforeBed !== undefined) patch.phoneBeforeBed = values.phoneBeforeBed ?? null;
+    
+    const current = Storage.getPrefs(pid);
+    Storage.savePrefs({ ...current, ...patch });
   }
 
   function back() {
@@ -161,9 +179,45 @@ export function OnboardingWizard({
   async function finish() {
     start(async () => {
       await persist(step);
-      const res = await completeOnboardingAction();
-      if ("ok" in res && res.ok) setPhase("summary");
-      else setError("error" in res ? res.error : "Something went wrong.");
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) { setError("Session lost."); return; }
+      
+      const p = Storage.getProfile(pid);
+      if (!p) { setError("Profile not found."); return; }
+
+      const prefs = Storage.getPrefs(pid);
+      const target = prefs.sleepTargetMinutes ?? guidanceForAge((prefs.ageGroup as AgeGroup) ?? null).recommendedMinutes;
+      const today = todayInTz(p.timezone);
+
+      // Save defaults
+      Storage.savePrefs({ ...prefs, sleepTargetMinutes: target, onboardingStep: 0 });
+
+      // Create starter plan
+      const existingTasks = Storage.getTasks().filter(t => t.profileId === pid && t.source === "lifeos" && t.status === "todo");
+      existingTasks.forEach(t => Storage.deleteTask(t.id));
+
+      for (const t of plan.starterTasks) {
+        Storage.saveTask({
+          id: generateId(), profileId: pid, title: t.title, priority: t.priority,
+          durationMinutes: t.durationMinutes ?? null, dueDate: today, source: "lifeos",
+          notes: null, status: "todo", goalId: null, completedAt: null, createdAt: new Date()
+        });
+      }
+
+      if (plan.suggestedGoal) {
+        const hasSame = Storage.getGoals().find(g => g.profileId === pid && g.title === plan.suggestedGoal?.title);
+        if (!hasSame) {
+          Storage.saveGoal({
+            id: generateId(), profileId: pid, title: plan.suggestedGoal.title,
+            description: plan.suggestedGoal.description, category: plan.suggestedGoal.category,
+            source: "lifeos", targetDate: null, status: "active", metricTarget: null,
+            metricUnit: null, metricProgress: 0, createdAt: new Date()
+          });
+        }
+      }
+
+      Storage.saveProfile({ ...p, onboardingCompleted: true });
+      setPhase("summary");
     });
   }
 

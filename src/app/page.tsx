@@ -1,11 +1,29 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/server/session";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Storage } from "@/lib/client/storage";
 
-export default async function Root() {
-  const session = await getSession();
-  if (!session) redirect("/welcome");
-  if (!session.profile.onboardingCompleted) redirect("/onboarding");
-  redirect("/home");
+export default function Root() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) {
+      router.push("/welcome");
+      return;
+    }
+    const profile = Storage.getProfile(pid);
+    if (!profile) {
+      router.push("/welcome");
+      return;
+    }
+    if (!profile.onboardingCompleted) {
+      router.push("/onboarding");
+      return;
+    }
+    router.push("/home");
+  }, [router]);
+
+  return null;
 }

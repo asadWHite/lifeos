@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { BatteryFull, BatteryLow, BatteryMedium } from "lucide-react";
-import { saveCheckinAction } from "@/server/actions/sleep";
+import { Storage, generateId } from "@/lib/client/storage";
+import { todayInTz } from "@/lib/time";
 
 const OPTIONS = [
   { id: "energized", label: "Energized", icon: BatteryFull },
@@ -16,11 +17,23 @@ export function EnergyPicker({ current }: { current: string | null }) {
   const [, start] = useTransition();
 
   function pick(id: string) {
-    const prev = selected;
     setSelected(id);
-    start(async () => {
-      const res = await saveCheckinAction({ energy: id as "energized" | "okay" | "tired" });
-      if (!res.ok) setSelected(prev);
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      const p = Storage.getProfile(pid);
+      if (!p) return;
+      const today = todayInTz(p.timezone);
+      
+      const existing = Storage.getCheckins().find(c => c.profileId === pid && c.day === today);
+      if (existing) {
+        Storage.saveCheckin({ ...existing, energy: id });
+      } else {
+        Storage.saveCheckin({
+          id: generateId(), profileId: pid, day: today,
+          energy: id, activityMinutes: null, note: null, createdAt: new Date()
+        });
+      }
     });
   }
 

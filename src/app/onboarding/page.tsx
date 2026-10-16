@@ -1,34 +1,50 @@
-import { redirect } from "next/navigation";
-import { requireSession } from "@/server/session";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useStore } from "@/lib/client/storage";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import type { OnboardingValues } from "@/lib/onboarding";
 import { Logo, Wordmark } from "@/components/Logo";
 
-export const dynamic = "force-dynamic";
+export default function OnboardingPage() {
+  const router = useRouter();
+  const { mounted, profileId, Storage } = useStore();
+  const [profile, setProfile] = useState<any>(null);
+  const [prefs, setPrefs] = useState<any>(null);
 
-export default async function OnboardingPage() {
-  const session = await requireSession();
-  if (session.profile.onboardingCompleted) redirect("/home");
+  useEffect(() => {
+    if (!mounted) return;
+    if (!profileId) { router.push("/welcome"); return; }
+    
+    const p = Storage.getProfile(profileId);
+    if (!p) { router.push("/welcome"); return; }
+    if (p.onboardingCompleted) { router.push("/home"); return; }
+    
+    setProfile(p);
+    setPrefs(Storage.getPrefs(profileId));
+  }, [mounted, profileId, router, Storage]);
 
-  const p = session.prefs;
+  if (!profile || !prefs) return null;
+
   const initialValues: OnboardingValues = {
-    ageGroup: p.ageGroup,
-    lifeStage: p.lifeStage,
-    lifeStageOther: p.lifeStageOther ?? "",
-    interests: p.interests ?? [],
-    interestsOther: p.interestsOther ?? "",
-    objectives: p.objectives ?? [],
-    objectivesOther: p.objectivesOther ?? "",
-    wakeTime: p.wakeTime,
-    bedtime: p.bedtime,
-    commitments: p.commitments,
-    personalTime: p.personalTime,
-    weekendVaries: p.weekendVaries,
-    planningStyle: p.planningStyle,
-    difficulties: p.difficulties ?? [],
-    phoneBeforeBed: p.phoneBeforeBed,
+    ageGroup: prefs.ageGroup,
+    lifeStage: prefs.lifeStage,
+    lifeStageOther: prefs.lifeStageOther ?? "",
+    interests: prefs.interests ?? [],
+    interestsOther: prefs.interestsOther ?? "",
+    objectives: prefs.objectives ?? [],
+    objectivesOther: prefs.objectivesOther ?? "",
+    wakeTime: prefs.wakeTime,
+    bedtime: prefs.bedtime,
+    commitments: prefs.commitments,
+    personalTime: prefs.personalTime,
+    weekendVaries: prefs.weekendVaries,
+    planningStyle: prefs.planningStyle,
+    difficulties: prefs.difficulties ?? [],
+    phoneBeforeBed: prefs.phoneBeforeBed,
   };
-  const initialStep = Math.min(Math.max(p.onboardingStep ?? 0, 0), 7);
+  const initialStep = Math.min(Math.max(prefs.onboardingStep ?? 0, 0), 7);
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
@@ -37,10 +53,10 @@ export default async function OnboardingPage() {
           <Logo size={26} />
           <Wordmark size={15} />
         </div>
-        <span className="text-[12.5px] font-medium text-ink3">Setting up for {session.profile.name.split(" ")[0]}</span>
+        <span className="text-[12.5px] font-medium text-ink3">Setting up for {profile.name.split(" ")[0]}</span>
       </header>
       <div className="flex flex-1 items-start justify-center px-5 pb-16 pt-8 sm:pt-12">
-        <OnboardingWizard initialStep={initialStep} initialValues={initialValues} profileName={session.profile.name.split(" ")[0]} />
+        <OnboardingWizard initialStep={initialStep} initialValues={initialValues} profileName={profile.name.split(" ")[0]} />
       </div>
     </div>
   );

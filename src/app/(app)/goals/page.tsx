@@ -1,55 +1,51 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Plus, Sprout } from "lucide-react";
-import { requireOnboarded } from "@/server/session";
-import { listGoalsWithTasks } from "@/server/data";
+import { Storage } from "@/lib/client/storage";
 import { computeGoalProgress, categoryLabel } from "@/lib/goals";
 import { todayInTz } from "@/lib/time";
 import { EmptyState } from "@/components/ui";
 import { GoalCard, type GoalCardModel } from "@/components/goals/GoalCard";
 import { NewGoalButton } from "@/components/goals/NewGoalButton";
 
-export const dynamic = "force-dynamic";
+export default function GoalsPage() {
+  const [data, setData] = useState<any>(null);
 
-export default async function GoalsPage() {
-  const session = await requireOnboarded();
-  const tz = session.profile.timezone;
-  const today = todayInTz(tz);
-  const rows = await listGoalsWithTasks(session.profile.id);
+  useEffect(() => {
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    const profile = Storage.getProfile(pid);
+    if (!profile) return;
 
-  const models: Array<{ goal: GoalCardModel; tasks: Parameters<typeof GoalCard>[0]["tasks"] }> =
-    rows.map((g) => {
-      const progress = computeGoalProgress(g, g.tasks);
+    const allGoals = Storage.getGoals().filter(g => g.profileId === pid);
+    const allTasks = Storage.getTasks().filter(t => t.profileId === pid);
+    const tz = profile.timezone;
+    const today = todayInTz(tz);
+
+    const models = allGoals.map(g => {
+      const gTasks = allTasks.filter(t => t.goalId === g.id);
+      const progress = computeGoalProgress(g, gTasks);
       return {
         goal: {
-          id: g.id,
-          title: g.title,
-          description: g.description,
-          category: g.category,
-          categoryLabel: categoryLabel(g.category),
-          targetDate: g.targetDate,
-          status: g.status,
-          source: g.source,
-          metricTarget: g.metricTarget,
-          metricUnit: g.metricUnit,
-          metricProgress: g.metricProgress,
-          percent: progress.percent,
+          id: g.id, title: g.title, description: g.description, category: g.category,
+          categoryLabel: categoryLabel(g.category), targetDate: g.targetDate,
+          status: g.status, source: g.source, metricTarget: g.metricTarget,
+          metricUnit: g.metricUnit, metricProgress: g.metricProgress, percent: progress.percent,
           explanation: progress.explanation,
         },
-        tasks: g.tasks.map((t) => ({
-          id: t.id,
-          title: t.title,
-          notes: t.notes,
-          dueDate: t.dueDate,
-          priority: t.priority,
-          durationMinutes: t.durationMinutes,
-          status: t.status,
-          source: t.source,
-          goalId: t.goalId,
-        })),
+        tasks: gTasks,
       };
     });
 
-  const active = models.filter((m) => m.goal.status === "active" || m.goal.status === "completed");
-  const archived = models.filter((m) => m.goal.status === "archived");
+    setData({ today, models });
+  }, []);
+
+  if (!data) return null;
+  const { today, models } = data;
+
+  const active = models.filter((m: any) => m.goal.status === "active" || m.goal.status === "completed");
+  const archived = models.filter((m: any) => m.goal.status === "archived");
 
   return (
     <div className="animate-rise">
@@ -74,7 +70,7 @@ export default async function GoalsPage() {
             />
           </div>
         )}
-        {active.map((m) => (
+        {active.map((m: any) => (
           <GoalCard key={m.goal.id} goal={m.goal} tasks={m.tasks} todayIso={today} />
         ))}
       </div>
@@ -83,7 +79,7 @@ export default async function GoalsPage() {
         <div className="mt-10">
           <h2 className="text-[15px] font-bold text-ink2">Archived</h2>
           <div className="mt-3 space-y-4">
-            {archived.map((m) => (
+            {archived.map((m: any) => (
               <GoalCard key={m.goal.id} goal={m.goal} tasks={m.tasks} todayIso={today} />
             ))}
           </div>

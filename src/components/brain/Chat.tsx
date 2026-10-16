@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowUp, Check, Sparkles } from "lucide-react";
-import { applyTaskProposalAction } from "@/server/actions/tasks";
+import { Storage, generateId } from "@/lib/client/storage";
+import { ruleBasedReply } from "@/lib/assistant";
+import { todayInTz, addDaysIso } from "@/lib/time";
 import type { AssistantProposal } from "@/lib/assistant";
 import { Spinner } from "@/components/ui";
 import { formatDuration } from "@/lib/time";
@@ -26,10 +28,16 @@ export function Chat({
   initialMessages,
   prompts,
   initialQuery,
+  profile,
+  prefs,
+  ctx,
 }: {
   initialMessages: ChatMessage[];
   prompts: string[];
   initialQuery: string | null;
+  profile: any;
+  prefs: any;
+  ctx: any;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [proposals, setProposals] = useState<Record<number, AssistantProposal[]>>({});
@@ -54,35 +62,26 @@ export function Chat({
       ...m,
       { id: `u-${Date.now()}`, role: "user", content: message, origin: "rules" },
     ]);
-    try {
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      const data = (await res.json()) as ApiReply;
-      if (!res.ok || !data.ok) {
-        setMessages((m) => [
-          ...m,
-          { id: `a-${Date.now()}`, role: "assistant", content: data.reply || "Something went wrong — please try again.", origin: "rules" },
-        ]);
-      } else {
+    setTimeout(() => {
+      try {
+        const { reply, proposals } = ruleBasedReply(message, ctx);
+        const assistantMsg = { id: generateId(), profileId: profile.id, role: "assistant" as const, content: reply, origin: "rules" as const, createdAt: new Date() };
+        Storage.saveMessage({ id: generateId(), profileId: profile.id, role: "user" as const, content: message, origin: "rules" as const, createdAt: new Date() });
+        Storage.saveMessage(assistantMsg);
+        
         setMessages((m) => {
           const idx = m.length;
-          if (data.proposals.length > 0) {
-            setProposals((p) => ({ ...p, [idx]: data.proposals }));
+          if (proposals && proposals.length > 0) {
+            setProposals((p) => ({ ...p, [idx]: proposals }));
           }
-          return [
-            ...m,
-            { id: `a-${Date.now()}`, role: "assistant", content: data.reply, origin: data.origin },
-          ];
+          return [...m, assistantMsg];
         });
+      } catch {
+        setError("Error processing request.");
+      } finally {
+        setBusy(false);
       }
-    } catch {
-      setError("Couldn't reach the assistant. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
+    }, 400);
   }
 
   // Auto-send the query passed from Home's teaser (once).
@@ -101,9 +100,16 @@ export function Chat({
 
   async function apply(msgIndex: number, pIndex: number, proposal: AssistantProposal) {
     const key = `${msgIndex}-${pIndex}`;
-    const res = await applyTaskProposalAction(proposal);
-    if (res.ok) setApplied((a) => ({ ...a, [key]: true }));
-    else setError(res.error);
+    const due = proposal.due === "today" ? todayInTz(profile.timezone) : addDaysIso(todayInTz(profile.timezone), 1);
+    
+    Storage.saveTask({
+      id: generateId(), profileId: profile.id, title: proposal.title,
+      priority: proposal.priority, durationMinutes: proposal.durationMinutes ?? null,
+      dueDate: due, source: "assistant", notes: null, status: "todo",
+      goalId: null, completedAt: null, createdAt: new Date()
+    });
+    
+    setApplied((a) => ({ ...a, [key]: true }));
   }
 
   return (

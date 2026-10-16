@@ -1,18 +1,30 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/server/session";
-import { listProfiles } from "@/server/data";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Storage } from "@/lib/client/storage";
 import { ProfileGate } from "@/components/welcome/ProfileGate";
 import { Logo, Wordmark } from "@/components/Logo";
 import { ListChecks, Lock, Moon, Sprout } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export default function WelcomePage() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [profiles, setProfiles] = useState<any[]>([]);
 
-export default async function WelcomePage() {
-  const session = await getSession();
-  if (session) redirect("/");
+  useEffect(() => {
+    setMounted(true);
+    const pid = Storage.getCurrentProfileId();
+    const existing = Storage.getProfiles();
+    
+    if (pid && existing.find(p => p.id === pid)) {
+      router.push("/");
+    } else {
+      setProfiles(existing.map(p => ({ id: p.id, name: p.name })));
+    }
+  }, [router]);
 
-  const profiles = await listProfiles();
-  const existing = profiles.map((p) => ({ id: p.id, name: p.name }));
+  if (!mounted) return null; // Avoid flash of unhydrated state
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
@@ -48,7 +60,7 @@ export default async function WelcomePage() {
         </div>
         <div className="flex items-center gap-2.5 text-[12.5px] text-ink2">
           <Lock size={13} aria-hidden />
-          Your data stays in your own database. No accounts, no ads, no tracking.
+          Local-First mode: Your data stays in your browser's local storage.
         </div>
       </div>
 
@@ -58,7 +70,7 @@ export default async function WelcomePage() {
             <Logo size={30} />
             <Wordmark />
           </div>
-          <ProfileGate profiles={existing} />
+          <ProfileGate profiles={profiles} />
         </div>
       </div>
     </div>

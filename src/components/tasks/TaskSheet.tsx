@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CalendarDays, Plus } from "lucide-react";
-import { createTaskAction } from "@/server/actions/tasks";
+import { Storage, generateId } from "@/lib/client/storage";
 import { FieldError, Sheet, Spinner } from "@/components/ui";
 
 export type GoalOption = { id: string; title: string };
@@ -72,16 +72,17 @@ export function TaskSheet({
       setError("Give the task a title.");
       return;
     }
-    start(async () => {
-      const res = await createTaskAction({
-        title: title.trim(),
-        dueDate: isoFor(when, date),
-        priority,
-        durationMinutes: duration ? Number(duration) : null,
-        goalId: goalId || null,
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      Storage.saveTask({
+        id: generateId(), profileId: pid, title: title.trim(),
+        dueDate: isoFor(when, date), priority, durationMinutes: duration ? Number(duration) : null,
+        goalId: goalId || null, source: "user", notes: null, status: "todo",
+        completedAt: null, createdAt: new Date()
       });
-      if (res.ok) onClose();
-      else setError(res.error);
+      onClose();
+      window.location.reload();
     });
   }
 

@@ -2,12 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { BedDouble, MoonStar, Pencil, Sunrise, Trash2, TriangleAlert } from "lucide-react";
-import {
-  correctSleepAction,
-  deleteSleepAction,
-  startSleepAction,
-  wakeUpAction,
-} from "@/server/actions/sleep";
+import { Storage, generateId } from "@/lib/client/storage";
 import { FieldError, Spinner } from "@/components/ui";
 import { formatClock, formatDuration } from "@/lib/time";
 import { STATUS_COPY, type SleepStatus } from "@/lib/sleep";
@@ -60,48 +55,71 @@ export function SleepActions({
 
   function begin() {
     setError("");
-    start(async () => {
-      const res = await startSleepAction();
-      if (!res.ok) setError(res.error);
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      Storage.saveSleep({
+        id: generateId(), profileId: pid, startedAt: new Date(), endedAt: null,
+        durationMinutes: null, manual: false, createdAt: new Date()
+      });
+      window.location.reload();
     });
   }
 
   function wake() {
     setError("");
-    start(async () => {
-      const res = await wakeUpAction();
-      if (!res.ok && "needsCorrection" in res && res.needsCorrection && res.sessionId && active) {
-        setCorrecting({ id: res.sessionId, startedAt: active.startedAt });
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid || !active) return;
+      const now = new Date();
+      const dur = Math.max(0, Math.floor((now.getTime() - new Date(active.startedAt).getTime()) / 60000));
+      
+      if (dur > 20 * 60) {
+        setCorrecting({ id: active.id, startedAt: active.startedAt });
         setStartValue(toInputValue(active.startedAt));
-        setEndValue(toInputValue(new Date().toISOString()));
-        setError(res.error);
-      } else if (!res.ok) {
-        setError(res.error);
+        setEndValue(toInputValue(now.toISOString()));
+        setError("Session over 20h — please correct the times.");
+        return;
+      }
+      
+      const s = Storage.getSleeps().find(x => x.id === active.id);
+      if (s) {
+        Storage.saveSleep({ ...s, endedAt: now, durationMinutes: dur });
+        if (dur > 16 * 60) {
+          setCorrecting({ id: active.id, startedAt: active.startedAt });
+          setStartValue(toInputValue(active.startedAt));
+          setEndValue(toInputValue(now.toISOString()));
+          setError("Session looks unusually long. Correct the times if you forgot to stop tracking.");
+        } else {
+          window.location.reload();
+        }
       }
     });
   }
 
   function saveCorrection() {
     if (!correcting) return;
-    start(async () => {
-      const res = await correctSleepAction({
-        id: correcting.id,
-        startedAt: new Date(startValue).toISOString(),
-        endedAt: new Date(endValue).toISOString(),
-      });
-      if (res.ok) {
+    start(() => {
+      const s = Storage.getSleeps().find(x => x.id === correcting.id);
+      if (s) {
+        const dEnd = new Date(endValue);
+        const dStart = new Date(startValue);
+        const dur = Math.max(0, Math.floor((dEnd.getTime() - dStart.getTime()) / 60000));
+        Storage.saveSleep({ ...s, startedAt: dStart, endedAt: dEnd, durationMinutes: dur, manual: true });
         setCorrecting(null);
         setError("");
-      } else setError(res.error);
+        window.location.reload();
+      }
     });
   }
 
   function discardCorrection() {
     if (!correcting) return;
-    start(async () => {
-      await deleteSleepAction(correcting.id);
+    start(() => {
+      Storage.deleteSleep(correcting.id);
       setCorrecting(null);
       setError("");
+      window.location.reload();
     });
   }
 
@@ -239,22 +257,24 @@ export function SleepHistoryList({
   }
 
   function saveEdit(id: string) {
-    start(async () => {
-      const res = await correctSleepAction({
-        id,
-        startedAt: new Date(startValue).toISOString(),
-        endedAt: new Date(endValue).toISOString(),
-      });
-      if (res.ok) setEditing(null);
-      else setError(res.error);
+    start(() => {
+      const s = Storage.getSleeps().find(x => x.id === id);
+      if (s) {
+        const dEnd = new Date(endValue);
+        const dStart = new Date(startValue);
+        const dur = Math.max(0, Math.floor((dEnd.getTime() - dStart.getTime()) / 60000));
+        Storage.saveSleep({ ...s, startedAt: dStart, endedAt: dEnd, durationMinutes: dur, manual: true });
+        setEditing(null);
+        window.location.reload();
+      }
     });
   }
 
   function remove(id: string) {
-    start(async () => {
-      const res = await deleteSleepAction(id);
-      if (!res.ok) setError(res.error);
+    start(() => {
+      Storage.deleteSleep(id);
       setConfirming(null);
+      window.location.reload();
     });
   }
 

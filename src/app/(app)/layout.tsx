@@ -1,18 +1,34 @@
-import type { ReactNode } from "react";
-import { requireOnboarded } from "@/server/session";
-import { listGoalsWithTasks } from "@/server/data";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Storage } from "@/lib/client/storage";
 import { AppShell } from "@/components/shell/AppShell";
 
-/** Protected application area: requires a profile with completed onboarding. */
-export default async function AppLayout({ children }: { children: ReactNode }) {
-  const session = await requireOnboarded();
-  const goalRows = await listGoalsWithTasks(session.profile.id);
-  const goalOptions = goalRows
-    .filter((g) => g.status === "active")
-    .map((g) => ({ id: g.id, title: g.title }));
+export default function AppLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [goals, setGoals] = useState<any[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) { router.push("/welcome"); return; }
+    
+    const p = Storage.getProfile(pid);
+    if (!p) { router.push("/welcome"); return; }
+    
+    if (!p.onboardingCompleted) { router.push("/onboarding"); return; }
+
+    setProfile(p);
+    setGoals(Storage.getGoals().filter(g => g.profileId === pid && g.status === "active").map(g => ({ id: g.id, title: g.title })));
+  }, [router]);
+
+  if (!mounted || !profile) return null;
 
   return (
-    <AppShell name={session.profile.name} goals={goalOptions}>
+    <AppShell name={profile.name} goals={goals}>
       {children}
     </AppShell>
   );

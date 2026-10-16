@@ -1,48 +1,45 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Brain, Download, Info, KeyRound, ShieldCheck } from "lucide-react";
-import { requireOnboarded } from "@/server/session";
+import { Storage } from "@/lib/client/storage";
 import { memoryFacts } from "@/lib/personalization";
-import { sleepGuidanceLine } from "@/server/assistant";
 import { SectionHeader } from "@/components/ui";
-import {
-  AccountActions,
-  AppearanceForm,
-  PlanningForm,
-  ProfileForm,
-  RetakeButton,
-  SleepForm,
-} from "@/components/settings/SettingsForms";
+import { AccountActions, AppearanceForm, PlanningForm, ProfileForm, RetakeButton, SleepForm } from "@/components/settings/SettingsForms";
+import { guidanceForAge, type AgeGroup } from "@/lib/sleep";
 
-export const dynamic = "force-dynamic";
+export default function SettingsPage() {
+  const [data, setData] = useState<any>(null);
 
-export default async function SettingsPage() {
-  const session = await requireOnboarded();
-  const { profile, prefs } = session;
-  const aiConfigured = Boolean(process.env.OPENAI_API_KEY);
+  useEffect(() => {
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    const profile = Storage.getProfile(pid);
+    const prefs = Storage.getPrefs(pid);
+    if (!profile || !prefs) return;
+    setData({ profile, prefs });
+  }, []);
+
+  if (!data) return null;
+  const { profile, prefs } = data;
 
   const facts = memoryFacts({
-    ageGroup: prefs.ageGroup,
-    lifeStage: prefs.lifeStage,
-    lifeStageOther: prefs.lifeStageOther,
-    interests: prefs.interests,
-    interestsOther: prefs.interestsOther,
-    objectives: prefs.objectives,
-    objectivesOther: prefs.objectivesOther,
-    wakeTime: prefs.wakeTime,
-    bedtime: prefs.bedtime,
-    planningStyle: prefs.planningStyle,
-    difficulties: prefs.difficulties,
-    phoneBeforeBed: prefs.phoneBeforeBed,
+    ageGroup: prefs.ageGroup, lifeStage: prefs.lifeStage, lifeStageOther: prefs.lifeStageOther,
+    interests: prefs.interests, interestsOther: prefs.interestsOther, objectives: prefs.objectives,
+    objectivesOther: prefs.objectivesOther, wakeTime: prefs.wakeTime, bedtime: prefs.bedtime,
+    planningStyle: prefs.planningStyle, difficulties: prefs.difficulties, phoneBeforeBed: prefs.phoneBeforeBed,
     weekendVaries: prefs.weekendVaries,
   });
+
+  const target = prefs.sleepTargetMinutes ?? 480;
+  const guidance = guidanceForAge((prefs.ageGroup as AgeGroup) ?? null);
 
   return (
     <div className="animate-rise">
       <header>
         <h1 className="text-[26px] font-bold tracking-tight text-ink">Settings</h1>
-        <p className="mt-1 text-[14px] text-ink2">
-          Everything LIFEOS knows about you is explicit, visible, and editable here.
-        </p>
+        <p className="mt-1 text-[14px] text-ink2">Everything LIFEOS knows about you is explicit, visible, and editable here.</p>
       </header>
 
       <div className="mt-7 space-y-5">
@@ -54,17 +51,9 @@ export default async function SettingsPage() {
         </section>
 
         <section className="card p-5 sm:p-6">
-          <SectionHeader
-            title="Sleep & schedule"
-            subtitle={`Target, rhythm and wind-down — ${sleepGuidanceLine(prefs.ageGroup)}. Not medical advice.`}
-          />
+          <SectionHeader title="Sleep & schedule" subtitle={`Target, rhythm and wind-down — ${guidance.label} is typical for your age group.`} />
           <div className="mt-5">
-            <SleepForm
-              targetMinutes={prefs.sleepTargetMinutes ?? 480}
-              wakeTime={prefs.wakeTime}
-              bedtime={prefs.bedtime}
-              phoneBeforeBed={prefs.phoneBeforeBed}
-            />
+            <SleepForm targetMinutes={target} wakeTime={prefs.wakeTime} bedtime={prefs.bedtime} phoneBeforeBed={prefs.phoneBeforeBed} />
           </div>
         </section>
 
@@ -84,16 +73,11 @@ export default async function SettingsPage() {
 
         <section className="card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
-            <SectionHeader
-              title="What LIFEOS knows about you"
-              subtitle="The complete list — nothing else is stored or inferred"
-            />
+            <SectionHeader title="What LIFEOS knows about you" subtitle="The complete list — nothing else is stored or inferred" />
             <RetakeButton />
           </div>
           {facts.length === 0 ? (
-            <p className="mt-4 text-[13.5px] text-ink2">
-              No preferences saved yet. Retake the quiz to personalize LIFEOS.
-            </p>
+            <p className="mt-4 text-[13.5px] text-ink2">No preferences saved yet. Retake the quiz to personalize LIFEOS.</p>
           ) : (
             <dl className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
               {facts.map((f) => (
@@ -106,35 +90,18 @@ export default async function SettingsPage() {
           )}
           <p className="mt-5 flex items-start gap-2 text-[12px] leading-relaxed text-ink3">
             <ShieldCheck size={14} className="mt-0.5 shrink-0 text-accent" />
-            LIFEOS deliberately avoids inferred psychological profiles. The assistant uses only
-            this explicit list plus your real tasks, goals and sleep totals.
+            LIFEOS deliberately avoids inferred psychological profiles. The assistant uses only this explicit list plus your real tasks, goals and sleep totals.
           </p>
         </section>
 
         <section className="card p-5 sm:p-6">
-          <SectionHeader
-            title="AI assistant"
-            subtitle={aiConfigured ? "A model is connected" : "No AI provider configured"}
-            action={<Brain size={16} className="text-ink3" />}
-          />
+          <SectionHeader title="AI assistant" subtitle="Local-First Rules Engine" action={<Brain size={16} className="text-ink3" />} />
           <div className="mt-4 flex items-start gap-3">
             <KeyRound size={15} className="mt-0.5 shrink-0 text-ink3" />
             <div className="text-[13px] leading-relaxed text-ink2">
-              {aiConfigured ? (
-                <p>
-                  Using <code className="rounded bg-sunken px-1.5 py-0.5 text-[12px]">{process.env.OPENAI_MODEL ?? "gpt-4o-mini"}</code> via your
-                  OpenAI-compatible endpoint. Replies from the model are labelled “AI model” in Brain;
-                  fallbacks are labelled “built-in rules”.
-                </p>
-              ) : (
-                <p>
-                  Brain works today with transparent, built-in rules. To enable a real model add{" "}
-                  <code className="rounded bg-sunken px-1.5 py-0.5 text-[12px]">OPENAI_API_KEY</code> (optionally{" "}
-                  <code className="rounded bg-sunken px-1.5 py-0.5 text-[12px]">OPENAI_BASE_URL</code>,{" "}
-                  <code className="rounded bg-sunken px-1.5 py-0.5 text-[12px]">OPENAI_MODEL</code>) to your server
-                  environment and restart. Keys are read server-side only and are never exposed to the browser.
-                </p>
-              )}
+              <p>
+                Because this is running in Local-First Mode (in your browser), Brain relies entirely on transparent, built-in rules that interact with your local data without sending it to external language models.
+              </p>
             </div>
           </div>
         </section>
@@ -143,31 +110,36 @@ export default async function SettingsPage() {
           <SectionHeader title="Your data" subtitle="Export or erase — it's yours" />
           <div className="mt-4 space-y-5">
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/api/export" className="btn btn-secondary btn-sm" download>
-                <Download size={14} />
-                Export everything (JSON)
-              </Link>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const payload = {
+                    format: "lifeos-local-export-v1",
+                    exportedAt: new Date().toISOString(),
+                    profile, prefs,
+                    tasks: Storage.getTasks().filter(t => t.profileId === profile.id),
+                    goals: Storage.getGoals().filter(g => g.profileId === profile.id),
+                    sleep: Storage.getSleeps().filter(s => s.profileId === profile.id),
+                    checkins: Storage.getCheckins().filter(c => c.profileId === profile.id),
+                    messages: Storage.getMessages().filter(m => m.profileId === profile.id)
+                  };
+                  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "lifeos-export.json";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download size={14} /> Export everything (JSON)
+              </button>
               <Link href="/health" className="btn btn-ghost btn-sm">
-                Review health data
-                <ArrowUpRight size={13} />
+                Review health data <ArrowUpRight size={13} />
               </Link>
             </div>
             <AccountActions />
           </div>
-        </section>
-
-        <section className="rounded-[14px] border border-line bg-sunken p-5 text-[12.5px] leading-relaxed text-ink2">
-          <p className="flex items-start gap-2">
-            <Info size={14} className="mt-0.5 shrink-0 text-ink3" />
-            <span>
-              <strong className="font-semibold text-ink">About this space.</strong> Profiles are
-              local to this device (a development identity, not secure sign-in). The architecture is
-              Supabase-ready: connect Supabase Auth + Postgres and swap the session adapter to get
-              real multi-device accounts with row-level security, per the project README. Health
-              content is informational only, and accounts for under-13s are intentionally gated
-              until guardian-consent safeguards exist.
-            </span>
-          </p>
         </section>
       </div>
     </div>

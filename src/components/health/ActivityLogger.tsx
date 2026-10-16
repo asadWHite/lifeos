@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Check, Footprints } from "lucide-react";
-import { saveCheckinAction } from "@/server/actions/sleep";
+import { Storage, generateId } from "@/lib/client/storage";
+import { todayInTz } from "@/lib/time";
 import { FieldError, Spinner } from "@/components/ui";
 
 const QUICK = [10, 20, 30, 45, 60];
@@ -32,22 +33,26 @@ export function ActivityLogger({
     timer.current = setTimeout(() => setSavedFlash(false), 1800);
   }
 
+  function _save(patch: any) {
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    const p = Storage.getProfile(pid);
+    if (!p) return;
+    const today = todayInTz(p.timezone);
+    const existing = Storage.getCheckins().find(c => c.profileId === pid && c.day === today);
+    if (existing) Storage.saveCheckin({ ...existing, ...patch });
+    else Storage.saveCheckin({ id: generateId(), profileId: pid, day: today, energy: null, activityMinutes: null, note: null, createdAt: new Date(), ...patch });
+    setError(""); flash();
+  }
+
   function pick(m: number) {
     const next = minutes === m ? null : m; // tap again to clear
     setMinutes(next);
-    start(async () => {
-      const res = await saveCheckinAction({ activityMinutes: next });
-      if (!res.ok) setError(res.error ?? "Couldn't save.");
-      else { setError(""); flash(); }
-    });
+    start(() => _save({ activityMinutes: next }));
   }
 
   function saveNote() {
-    start(async () => {
-      const res = await saveCheckinAction({ note: note.trim() || null });
-      if (!res.ok) setError(res.error ?? "Couldn't save.");
-      else { setError(""); flash(); }
-    });
+    start(() => _save({ note: note.trim() || null }));
   }
 
   return (

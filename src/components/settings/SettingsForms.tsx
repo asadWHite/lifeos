@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, LogOut, RefreshCcw, Trash2 } from "lucide-react";
-import {
-  deleteProfileDataAction,
-  signOutProfileAction,
-  retakeOnboardingAction,
-  updateSettingsAction,
-} from "@/server/actions/account";
+import { Storage } from "@/lib/client/storage";
 import { FieldError, Spinner, Toggle } from "@/components/ui";
 import { PHONE_USE, PLANNING_STYLES } from "@/lib/onboarding";
 
@@ -57,9 +52,13 @@ export function ProfileForm({ name, timezone }: { name: string; timezone: string
       setError("Your name can't be empty.");
       return;
     }
-    start(async () => {
-      const res = await updateSettingsAction({ name: n.trim(), timezone: tz });
-      if (res.ok) { setError(""); bump(); } else setError(res.error);
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      const p = Storage.getProfile(pid);
+      if (p) Storage.saveProfile({ ...p, name: n.trim(), timezone: tz });
+      setError(""); bump();
+      window.location.reload();
     });
   }
 
@@ -111,14 +110,21 @@ export function SleepForm({
   const [pending, start] = useTransition();
 
   function save() {
-    start(async () => {
-      const res = await updateSettingsAction({
-        sleepTargetMinutes: Number(target) || null,
-        wakeTime: wake || null,
-        bedtime: bed || null,
-        phoneBeforeBed: (phone || null) as "rarely" | "sometimes" | "often" | "prefer_not" | null,
-      });
-      if (res.ok) { setError(""); bump(); } else setError(res.error);
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      const p = Storage.getPrefs(pid);
+      if (p) {
+        Storage.savePrefs({
+          ...p,
+          sleepTargetMinutes: Number(target) || null,
+          wakeTime: wake || null,
+          bedtime: bed || null,
+          phoneBeforeBed: (phone || null) as "rarely" | "sometimes" | "often" | "prefer_not" | null,
+        });
+      }
+      setError(""); bump();
+      window.location.reload();
     });
   }
 
@@ -195,9 +201,13 @@ export function PlanningForm({
 
   function pickStyle(id: string) {
     setStyle(id);
-    start(async () => {
-      const res = await updateSettingsAction({ planningStyle: id as "full_plan" | "together" | "independent" });
-      if (res.ok) bump();
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (pid) {
+        const p = Storage.getPrefs(pid);
+        Storage.savePrefs({ ...p, planningStyle: id });
+        bump();
+      }
     });
   }
 
@@ -206,9 +216,13 @@ export function PlanningForm({
     if (show) next.delete(id);
     else next.add(id);
     setHiddenSet(next);
-    start(async () => {
-      const res = await updateSettingsAction({ hiddenSections: [...next] });
-      if (res.ok) bump();
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (pid) {
+        const p = Storage.getPrefs(pid);
+        Storage.savePrefs({ ...p, hiddenSections: [...next] });
+        bump();
+      }
     });
   }
 
@@ -265,8 +279,12 @@ export function AppearanceForm({ theme }: { theme: string }) {
     } catch {
       /* private mode */
     }
-    start(async () => {
-      await updateSettingsAction({ theme: next as "light" | "dark" | "system" });
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (pid) {
+        const p = Storage.getPrefs(pid);
+        Storage.savePrefs({ ...p, theme: next });
+      }
     });
   }
 
@@ -288,8 +306,14 @@ export function RetakeButton() {
     <button
       className="btn btn-secondary btn-sm"
       onClick={() =>
-        start(async () => {
-          await retakeOnboardingAction();
+        start(() => {
+          const pid = Storage.getCurrentProfileId();
+          if (pid) {
+            const profile = Storage.getProfile(pid);
+            if (profile) Storage.saveProfile({ ...profile, onboardingCompleted: false });
+            const prefs = Storage.getPrefs(pid);
+            if (prefs) Storage.savePrefs({ ...prefs, onboardingStep: 0 });
+          }
           router.push("/onboarding");
         })
       }
@@ -306,26 +330,28 @@ export function AccountActions() {
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
+  const router = useRouter();
   function destroy() {
-    start(async () => {
-      const res = await deleteProfileDataAction();
-      if (!res.ok) {
-        setError(res.error);
-        setConfirming(false);
-      }
-      // On success the session is gone; guard rails redirect on next render.
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (pid) Storage.deleteProfile(pid);
+      Storage.setCurrentProfileId(null);
+      router.push("/welcome");
     });
+  }
+
+  function signout() {
+    Storage.setCurrentProfileId(null);
+    router.push("/welcome");
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <form action={signOutProfileAction}>
-          <button className="btn btn-secondary btn-sm" type="submit">
-            <LogOut size={14} />
-            Sign out of this profile
-          </button>
-        </form>
+        <button className="btn btn-secondary btn-sm" onClick={signout}>
+          <LogOut size={14} />
+          Sign out of this profile
+        </button>
       </div>
       <div className="rounded-[14px] border border-red-line bg-red-soft/50 p-4">
         <p className="text-[13.5px] font-semibold text-ink">Delete this profile</p>

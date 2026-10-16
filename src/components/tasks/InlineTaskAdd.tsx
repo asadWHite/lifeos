@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { Plus } from "lucide-react";
-import { createTaskAction } from "@/server/actions/tasks";
+import { Storage, generateId } from "@/lib/client/storage";
 import { Spinner } from "@/components/ui";
 
 /** One-keystroke task creation — used on Home. No ceremony required. */
@@ -23,17 +23,19 @@ export function InlineTaskAdd({
     e?.preventDefault();
     const t = title.trim();
     if (!t) return;
-    start(async () => {
-      const res = await createTaskAction({
-        title: t,
-        dueDate,
-        priority: "normal",
-        goalId: goalId ?? null,
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      Storage.saveTask({
+        id: generateId(), profileId: pid, title: t,
+        priority: "normal", durationMinutes: null, dueDate,
+        source: "user", notes: null, status: "todo",
+        goalId: goalId ?? null, completedAt: null, createdAt: new Date()
       });
-      if (res.ok) {
-        setTitle("");
-        setError("");
-      } else setError(res.error);
+      setTitle("");
+      setError("");
+      // simple hard reload to update UI since we bypassed server actions
+      window.location.reload();
     });
   }
 

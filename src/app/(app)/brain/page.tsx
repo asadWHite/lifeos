@@ -1,123 +1,118 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CircleCheck, Database, Eye, KeyRound } from "lucide-react";
-import { requireOnboarded } from "@/server/session";
-import { listAssistantMessages } from "@/server/data";
+import { Storage } from "@/lib/client/storage";
 import { personalize } from "@/lib/personalization";
 import { Chat } from "@/components/brain/Chat";
+import { computeGoalProgress } from "@/lib/goals";
+import { weeklySleepStats } from "@/lib/sleep";
+import { todayInTz, dayPartsInTz, addDaysIso } from "@/lib/time";
+import { labelFor, LIFE_STAGES, OBJECTIVES, INTERESTS } from "@/lib/onboarding";
 
-export const dynamic = "force-dynamic";
+export default function BrainPage() {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("m")?.slice(0, 300) || null;
+  const [data, setData] = useState<any>(null);
 
-export default async function BrainPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const session = await requireOnboarded();
-  const { profile, prefs } = session;
-  const params = await searchParams;
-  const initialQuery = typeof params.m === "string" ? params.m.slice(0, 300) : null;
+  useEffect(() => {
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    const profile = Storage.getProfile(pid);
+    const prefs = Storage.getPrefs(pid);
+    if (!profile || !prefs) return;
 
-  const history = await listAssistantMessages(profile.id, 50);
+    const tz = profile.timezone;
+    const today = todayInTz(tz);
+    const history = Storage.getMessages().filter(m => m.profileId === pid).sort((a,b) => +new Date(a.createdAt) - +new Date(b.createdAt)).slice(-50);
+    
+    const tasks = Storage.getTasks().filter(t => t.profileId === pid);
+    const goals = Storage.getGoals().filter(g => g.profileId === pid);
+    const sleeps = Storage.getSleeps().filter(s => s.profileId === pid);
+    const checkins = Storage.getCheckins().filter(c => c.profileId === pid);
+
+    const todayTasks = tasks.filter(t => t.dueDate === today).slice(0,12);
+    const overdueCount = tasks.filter(t => t.status !== "done" && t.dueDate && t.dueDate < today).length;
+    
+    const completedSleeps = sleeps.filter(s => s.endedAt).slice(0,30);
+    const toLocal = (d: Date) => { const p = dayPartsInTz(tz, d); return { minutesAfterMidnight: p.hour * 60 + p.minute, dateIso: p.iso }; };
+    const sleepStats = weeklySleepStats(completedSleeps.map((s:any)=>({...s, startedAt:new Date(s.startedAt), endedAt:new Date(s.endedAt)})), toLocal, today);
+
+    let bedtime = prefs.bedtime;
+    if (!bedtime && prefs.wakeTime && prefs.sleepTargetMinutes) {
+      const [h, m] = prefs.wakeTime.split(":").map(Number);
+      let total = h * 60 + m - prefs.sleepTargetMinutes;
+      while (total < 0) total += 24 * 60;
+      total = total % (24 * 60);
+      bedtime = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+
+    const ctx = {
+      name: profile.name.split(" ")[0],
+      lifeStageLabel: labelFor(LIFE_STAGES, prefs.lifeStage),
+      objectiveLabels: prefs.objectives.map((o:any) => labelFor(OBJECTIVES, o) ?? o),
+      interestLabels: prefs.interests.map((i:any) => labelFor(INTERESTS, i) ?? i),
+      sleepTargetMinutes: prefs.sleepTargetMinutes,
+      bedtime, wakeTime: prefs.wakeTime,
+      today: todayTasks.map(t => ({ title: t.title, done: t.status === "done", priority: t.priority, durationMinutes: t.durationMinutes })),
+      overdueCount, tomorrowCount: tasks.filter(t => t.dueDate === addDaysIso(today, 1)).length,
+      goals: goals.filter(g => g.status === "active").slice(0,5).map(g => {
+        const progress = computeGoalProgress(g, tasks.filter(t => t.goalId === g.id));
+        return { title: g.title, percent: progress.percent, explanation: progress.explanation };
+      }),
+      lastSleepMinutes: completedSleeps[0]?.durationMinutes ?? null,
+      weekSleepAverage: sleepStats.averageMinutes,
+      energy: checkins.find(c => c.day === today)?.energy ?? null,
+    };
+
+    setData({ profile, prefs, history, ctx });
+  }, []);
+
+  if (!data) return null;
+  const { profile, prefs, history, ctx } = data;
+
   const config = personalize({
-    ageGroup: prefs.ageGroup,
-    lifeStage: prefs.lifeStage,
-    interests: prefs.interests,
-    objectives: prefs.objectives,
-    planningStyle: prefs.planningStyle,
-    difficulties: prefs.difficulties,
-    personalTime: prefs.personalTime,
-    sleepTargetMinutes: prefs.sleepTargetMinutes,
+    ageGroup: prefs.ageGroup, lifeStage: prefs.lifeStage, interests: prefs.interests,
+    objectives: prefs.objectives, planningStyle: prefs.planningStyle, difficulties: prefs.difficulties,
+    personalTime: prefs.personalTime, sleepTargetMinutes: prefs.sleepTargetMinutes,
   });
-
-  const aiConfigured = Boolean(process.env.OPENAI_API_KEY);
-  const modelName = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
   return (
     <div className="animate-rise grid gap-5 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <header className="pb-4">
           <h1 className="text-[26px] font-bold tracking-tight text-ink">Brain</h1>
-          <p className="mt-1 text-[14px] text-ink2">
-            Your assistant for planning, tasks, and answers about your own data.
-          </p>
+          <p className="mt-1 text-[14px] text-ink2">Your assistant for planning, tasks, and answers about your own data.</p>
         </header>
 
-        {!aiConfigured && (
-          <div className="card mb-4 flex items-start gap-3 border-info-soft bg-info-soft/60 p-4">
-            <KeyRound size={17} className="mt-0.5 shrink-0 text-info" />
-            <div className="text-[13px] leading-relaxed text-ink2">
-              <p className="font-semibold text-ink">Running on built-in rules — clearly labelled below each reply.</p>
-              <p className="mt-1">
-                To connect a real AI model, set <code className="rounded bg-surface px-1.5 py-0.5 text-[12px]">OPENAI_API_KEY</code>
-                (and optionally <code className="rounded bg-surface px-1.5 py-0.5 text-[12px]">OPENAI_BASE_URL</code> /{" "}
-                <code className="rounded bg-surface px-1.5 py-0.5 text-[12px]">OPENAI_MODEL</code>) in your environment, then restart
-                the app. Keys stay server-side only. Until then, answers still come from your real data — just without generative language.
-              </p>
-            </div>
+        <div className="card mb-4 flex items-start gap-3 border-info-soft bg-info-soft/60 p-4">
+          <KeyRound size={17} className="mt-0.5 shrink-0 text-info" />
+          <div className="text-[13px] leading-relaxed text-ink2">
+            <p className="font-semibold text-ink">Running in Local-First Mode (Built-in Rules)</p>
+            <p className="mt-1">
+              Because you are using LIFEOS completely locally, the assistant is running via built-in rules inside your browser. No external API keys are required and your data never leaves your device.
+            </p>
           </div>
-        )}
+        </div>
 
-        <Chat
-          initialMessages={history.map((m) => ({
-            id: m.id,
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            origin: m.origin as "ai" | "rules",
-          }))}
-          prompts={config.quickPrompts}
-          initialQuery={initialQuery}
-        />
+        <Chat initialMessages={history} prompts={config.quickPrompts} initialQuery={initialQuery} profile={profile} prefs={prefs} ctx={ctx} />
       </div>
 
-      {/* Transparency panel */}
       <aside className="space-y-5">
         <div className="card p-5">
-          <h2 className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
-            <Eye size={15} className="text-ink3" />
-            What I can use to answer
-          </h2>
+          <h2 className="flex items-center gap-2 text-[14.5px] font-semibold text-ink"><Eye size={15} className="text-ink3" /> What I can use to answer</h2>
           <ul className="mt-3 space-y-2.5">
-            {[
-              "Today's tasks and overdue items",
-              "Active goals and their real progress",
-              "Sleep totals (last night + weekly average)",
-              "Your explicit onboarding preferences",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-[13px] text-ink2">
-                <CircleCheck size={14} className="mt-0.5 shrink-0 text-accent" />
-                {item}
-              </li>
+            {["Today's tasks and overdue items", "Active goals and their real progress", "Sleep totals (last night + weekly average)", "Your explicit onboarding preferences"].map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-[13px] text-ink2"><CircleCheck size={14} className="mt-0.5 shrink-0 text-accent" />{item}</li>
             ))}
           </ul>
           <div className="divider my-4" />
           <p className="flex items-start gap-2.5 text-[12px] leading-relaxed text-ink3">
             <Database size={14} className="mt-0.5 shrink-0" />
-            Only this summarized context is used — never your full history. Nothing is sent to an
-            external model unless you configure an AI key, and task changes always need your confirmation.
+            Only this summarized context is used. Because you are in Local-First Mode, everything is processed instantly on your device.
           </p>
         </div>
-
-        <div className="card p-5">
-          <h2 className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
-            <KeyRound size={15} className="text-ink3" />
-            Engine status
-          </h2>
-          <div className="mt-3 flex items-center gap-2">
-            <span
-              className={`badge ${aiConfigured ? "bg-accent-soft text-accent-ink" : "bg-sunken text-ink2"}`}
-            >
-              {aiConfigured ? `AI connected · ${modelName}` : "Built-in rules"}
-            </span>
-          </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-ink3">
-            {aiConfigured
-              ? "Replies marked “AI model” come from your configured provider; “built-in rules” replies are local fallbacks."
-              : "Every reply is labelled by its origin. LIFEOS never presents rule output as AI-generated."}
-          </p>
-        </div>
-        <p className="px-1 text-[11.5px] leading-relaxed text-ink3">
-          Life topics are general guidance, not medical advice. For health concerns, please
-          talk to a qualified professional.
-        </p>
       </aside>
     </div>
   );

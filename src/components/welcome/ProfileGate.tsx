@@ -1,17 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { createProfileAction, selectProfileAction } from "@/server/actions/account";
+import { Storage, generateId } from "@/lib/client/storage";
 import { FieldError, Spinner } from "@/components/ui";
 
-/**
- * Local profile gate — this is NOT authentication.
- * It identifies which local profile to open on this device. Supabase (or any
- * real auth provider) can replace this component without touching the
- * session's call sites.
- */
 export function ProfileGate({ profiles }: { profiles: Array<{ id: string; name: string }> }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -20,23 +14,28 @@ export function ProfileGate({ profiles }: { profiles: Array<{ id: string; name: 
 
   function create() {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Tell us what to call you.");
-      return;
-    }
-    start(async () => {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-      const res = await createProfileAction({ name: trimmed, timezone });
-      if (res.ok) router.push("/onboarding");
-      else setError(res.error);
+    if (!trimmed) { setError("Tell us what to call you."); return; }
+    start(() => {
+      const p = {
+        id: generateId(),
+        name: trimmed,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        onboardingCompleted: false,
+        createdAt: new Date()
+      };
+      // @ts-ignore (ignoring exact type match for local storage)
+      Storage.saveProfile(p);
+      Storage.setCurrentProfileId(p.id);
+      router.push("/onboarding");
+      router.refresh();
     });
   }
 
   function open(id: string) {
-    start(async () => {
-      const res = await selectProfileAction(id);
-      if (res.ok) router.push("/");
-      else setError(res.error);
+    start(() => {
+      Storage.setCurrentProfileId(id);
+      router.push("/");
+      router.refresh();
     });
   }
 
@@ -48,7 +47,7 @@ export function ProfileGate({ profiles }: { profiles: Array<{ id: string; name: 
       <p className="mt-2 text-[14.5px] leading-relaxed text-ink2">
         {profiles.length > 0
           ? "Pick a profile to continue, or create a new one."
-          : "Create a local profile to get started — it lives on this device and takes about a minute to personalize."}
+          : "Create a local profile to get started — it lives right here in your browser."}
       </p>
 
       {profiles.length > 0 && (
@@ -91,8 +90,7 @@ export function ProfileGate({ profiles }: { profiles: Array<{ id: string; name: 
         </div>
         <FieldError>{error}</FieldError>
         <p className="mt-4 text-[12px] leading-relaxed text-ink3">
-          Local profiles are for this device only — no password needed yet. Real sign-in
-          (Supabase-ready) can be enabled for multi-device sync in Settings later.
+          Running in Local-First mode. Your data stays entirely in your browser.
         </p>
       </div>
     </div>

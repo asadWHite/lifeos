@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createGoalAction, updateGoalAction } from "@/server/actions/tasks";
+import { Storage, generateId } from "@/lib/client/storage";
 import { FieldError, Sheet, Spinner, Toggle } from "@/components/ui";
 import { GOAL_CATEGORIES } from "@/lib/goals";
 
@@ -58,7 +58,10 @@ export function GoalSheet({
       setError("A goal needs a name.");
       return;
     }
-    start(async () => {
+    start(() => {
+      const pid = Storage.getCurrentProfileId();
+      if (!pid) return;
+      
       const payload = {
         title: draft.title.trim(),
         description: draft.description.trim() || null,
@@ -67,11 +70,19 @@ export function GoalSheet({
         metricTarget: draft.hasMetric ? Number(draft.metricTarget) || null : null,
         metricUnit: draft.hasMetric ? draft.metricUnit.trim() || null : null,
       };
-      const res = draft.id
-        ? await updateGoalAction(draft.id, payload)
-        : await createGoalAction(payload);
-      if (res.ok) onClose();
-      else setError(res.error);
+
+      if (draft.id) {
+        const existing = Storage.getGoals().find(g => g.id === draft.id);
+        if (existing) Storage.saveGoal({ ...existing, ...payload });
+      } else {
+        Storage.saveGoal({
+          ...payload, id: generateId(), profileId: pid,
+          status: "active", metricProgress: 0, source: "user", createdAt: new Date()
+        });
+      }
+      
+      onClose();
+      window.location.reload();
     });
   }
 

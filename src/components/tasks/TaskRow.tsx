@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Pencil, Sparkles, Sprout, Trash2 } from "lucide-react";
-import { deleteTaskAction, toggleTaskAction, updateTaskAction } from "@/server/actions/tasks";
+import { Storage } from "@/lib/client/storage";
 import { ConfirmInline, FieldError, Spinner } from "@/components/ui";
 import { formatDuration, friendlyDue } from "@/lib/time";
 
@@ -41,11 +41,11 @@ export function TaskRow({
   function toggle() {
     const next = !done;
     setDone(next); // optimistic
-    start(async () => {
-      const res = await toggleTaskAction(task.id);
-      if (!res.ok) {
-        setDone(!next);
-        setError(res.error);
+    start(() => {
+      const t = Storage.getTasks().find(x => x.id === task.id);
+      if (t) {
+        Storage.saveTask({ ...t, status: next ? "done" : "todo", completedAt: next ? new Date() : null });
+        window.location.reload();
       }
     });
   }
@@ -55,25 +55,21 @@ export function TaskRow({
       setError("Title can't be empty.");
       return;
     }
-    start(async () => {
-      const res = await updateTaskAction({
-        id: task.id,
-        title: title.trim(),
-        dueDate: dueDate || null,
-        priority: priority as "low" | "normal" | "high",
-      });
-      if (res.ok) setMode("view");
-      else setError(res.error);
+    start(() => {
+      const t = Storage.getTasks().find(x => x.id === task.id);
+      if (t) {
+        Storage.saveTask({ ...t, title: title.trim(), dueDate: dueDate || null, priority: priority as "low" | "normal" | "high" });
+        setMode("view");
+        window.location.reload();
+      }
     });
   }
 
   function remove() {
-    start(async () => {
-      const res = await deleteTaskAction(task.id);
-      if (!res.ok) {
-        setError(res.error);
-        setMode("view");
-      }
+    start(() => {
+      Storage.deleteTask(task.id);
+      setMode("view");
+      window.location.reload();
     });
   }
 

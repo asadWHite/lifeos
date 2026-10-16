@@ -11,11 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import {
-  deleteGoalAction,
-  logGoalProgressAction,
-  setGoalStatusAction,
-} from "@/server/actions/tasks";
+import { Storage } from "@/lib/client/storage";
 import { TaskRow, type TaskView } from "@/components/tasks/TaskRow";
 import { InlineTaskAdd } from "@/components/tasks/InlineTaskAdd";
 import { ConfirmInline, ProgressBar, StatusPill, Spinner } from "@/components/ui";
@@ -56,11 +52,11 @@ export function GoalCard({
   const archived = goal.status === "archived";
   const completed = goal.status === "completed";
 
-  function act(fn: () => Promise<{ ok: boolean; error?: string }>, fallback?: string) {
+  function act(fn: () => void, fallback?: string) {
     setError("");
-    start(async () => {
-      const res = await fn();
-      if (!res.ok) setError(res.error ?? fallback ?? "Something went wrong.");
+    start(() => {
+      try { fn(); window.location.reload(); }
+      catch (e: any) { setError(e.message || fallback || "Error"); }
     });
   }
 
@@ -96,11 +92,17 @@ export function GoalCard({
             <Pencil size={15} />
           </button>
           {archived ? (
-            <button className="icon-btn" onClick={() => act(() => setGoalStatusAction(goal.id, "active"))} aria-label="Restore goal">
+            <button className="icon-btn" onClick={() => act(() => {
+              const g = Storage.getGoals().find(x => x.id === goal.id);
+              if (g) Storage.saveGoal({ ...g, status: "active" });
+            })} aria-label="Restore goal">
               <ArchiveRestore size={15} />
             </button>
           ) : (
-            <button className="icon-btn" onClick={() => act(() => setGoalStatusAction(goal.id, "archived"))} aria-label="Archive goal">
+            <button className="icon-btn" onClick={() => act(() => {
+              const g = Storage.getGoals().find(x => x.id === goal.id);
+              if (g) Storage.saveGoal({ ...g, status: "archived" });
+            })} aria-label="Archive goal">
               <Archive size={15} />
             </button>
           )}
@@ -154,13 +156,22 @@ export function GoalCard({
               </p>
               <p className="mt-0.5 text-[12px] text-ink2">Log real progress — nothing is counted for you.</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button className="btn btn-sm btn-secondary" onClick={() => act(() => logGoalProgressAction(goal.id, 1))} disabled={pending || completed}>
+                <button className="btn btn-sm btn-secondary" onClick={() => act(() => {
+                  const g = Storage.getGoals().find(x => x.id === goal.id);
+                  if (g) Storage.saveGoal({ ...g, metricProgress: Math.min(g.metricTarget || 999999, g.metricProgress + 1), status: (g.metricTarget && g.metricProgress + 1 >= g.metricTarget) ? "completed" : g.status });
+                })} disabled={pending || completed}>
                   <Plus size={13} /> 1
                 </button>
-                <button className="btn btn-sm btn-secondary" onClick={() => act(() => logGoalProgressAction(goal.id, 5))} disabled={pending || completed}>
+                <button className="btn btn-sm btn-secondary" onClick={() => act(() => {
+                  const g = Storage.getGoals().find(x => x.id === goal.id);
+                  if (g) Storage.saveGoal({ ...g, metricProgress: Math.min(g.metricTarget || 999999, g.metricProgress + 5), status: (g.metricTarget && g.metricProgress + 5 >= g.metricTarget) ? "completed" : g.status });
+                })} disabled={pending || completed}>
                   <Plus size={13} /> 5
                 </button>
-                <button className="btn btn-sm btn-ghost" onClick={() => act(() => logGoalProgressAction(goal.id, -1))} disabled={pending || goal.metricProgress === 0}>
+                <button className="btn btn-sm btn-ghost" onClick={() => act(() => {
+                  const g = Storage.getGoals().find(x => x.id === goal.id);
+                  if (g) Storage.saveGoal({ ...g, metricProgress: Math.max(0, g.metricProgress - 1) });
+                })} disabled={pending || goal.metricProgress === 0}>
                   <Minus size={13} /> 1
                 </button>
               </div>
@@ -187,7 +198,7 @@ export function GoalCard({
             <div className="flex items-center gap-2">
               <ConfirmInline
                 message="Delete this goal? Linked tasks are kept."
-                onConfirm={() => act(() => deleteGoalAction(goal.id))}
+                onConfirm={() => act(() => Storage.deleteGoal(goal.id))}
                 onCancel={() => setConfirmingDelete(false)}
                 busy={pending}
               />
