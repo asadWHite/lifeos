@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CalendarDays, Plus } from "lucide-react";
+import { CalendarDays, Plus, X, Clock, Target, AlertCircle } from "lucide-react";
 import { Storage, generateId } from "@/lib/client/storage";
 import { FieldError, Sheet, Spinner } from "@/components/ui";
 
@@ -19,15 +19,15 @@ function isoFor(when: When, picked: string): string | null {
 }
 
 const DURATIONS = [
-  { value: "", label: "No estimate" },
-  { value: "10", label: "10 min" },
-  { value: "15", label: "15 min" },
-  { value: "25", label: "25 min" },
-  { value: "30", label: "30 min" },
-  { value: "45", label: "45 min" },
-  { value: "60", label: "1 hour" },
-  { value: "90", label: "1.5 hours" },
-  { value: "120", label: "2 hours" },
+  { value: "", label: "Taxminiy vaqt yo'q" },
+  { value: "10", label: "10 daqiqa" },
+  { value: "15", label: "15 daqiqa" },
+  { value: "25", label: "25 daqiqa" },
+  { value: "30", label: "30 daqiqa" },
+  { value: "45", label: "45 daqiqa" },
+  { value: "60", label: "1 soat" },
+  { value: "90", label: "1.5 soat" },
+  { value: "120", label: "2 soat" },
 ];
 
 export function TaskSheet({
@@ -52,7 +52,6 @@ export function TaskSheet({
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
-  // Reset the form when the sheet opens (adjust-state-during-render pattern)
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
@@ -69,7 +68,7 @@ export function TaskSheet({
 
   function submit() {
     if (!title.trim()) {
-      setError("Give the task a title.");
+      setError("Vazifa nomini kiriting.");
       return;
     }
     start(() => {
@@ -87,16 +86,13 @@ export function TaskSheet({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="New task">
-      <div className="space-y-5">
-        <div>
-          <label className="label" htmlFor="task-title">
-            Task
-          </label>
+    <Sheet open={open} onClose={onClose} title="Yangi vazifa">
+      <div className="space-y-6 pt-2">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Nima qilamiz?</label>
           <input
-            id="task-title"
-            className="input"
-            placeholder="What needs doing?"
+            className="w-full bg-bg border border-border rounded-2xl p-4 text-ink focus:outline-none focus:border-brand-silver transition-colors"
+            placeholder="Vazifa nomi..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -104,25 +100,27 @@ export function TaskSheet({
           />
         </div>
 
-        <div>
-          <span className="label">When</span>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Due date">
+        <div className="space-y-3">
+          <span className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Qachon?</span>
+          <div className="flex flex-wrap gap-2">
             {(
               [
-                ["today", "Today"],
-                ["tomorrow", "Tomorrow"],
-                ["pick", "Pick a date"],
-                ["none", "No date"],
+                ["today", "Bugun"],
+                ["tomorrow", "Ertaga"],
+                ["pick", "Tanlash"],
+                ["none", "Vaqtsiz"],
               ] as Array<[When, string]>
             ).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
-                className="chip"
-                data-selected={when === value}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  when === value 
+                  ? 'bg-brand-dark border-brand-dark text-brand-light shadow-metallic' 
+                  : 'bg-white border-border text-ink-muted hover:border-brand-silver'
+                }`}
                 onClick={() => setWhen(value)}
               >
-                {value === "pick" && <CalendarDays size={14} aria-hidden />}
                 {label}
               </button>
             ))}
@@ -130,82 +128,77 @@ export function TaskSheet({
           {when === "pick" && (
             <input
               type="date"
-              className="input mt-3"
+              className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              aria-label="Choose a date"
             />
           )}
         </div>
 
-        <div>
-          <span className="label">Priority</span>
-          <div className="flex gap-2" role="group" aria-label="Priority">
-            {(["low", "normal", "high"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className="chip capitalize"
-                data-selected={priority === p}
-                onClick={() => setPriority(p)}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+           <div className="space-y-2">
+              <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Muhimlik</label>
+              <div className="flex gap-2">
+                {["low", "normal", "high"].map((p: any) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border ${
+                      priority === p 
+                      ? (p === 'high' ? 'bg-red-500 border-red-500 text-white' : 'bg-brand-dark border-brand-dark text-brand-light')
+                      : 'bg-white border-border text-ink-muted'
+                    }`}
+                  >
+                    {p === 'low' ? 'Past' : p === 'normal' ? 'O\'rta' : 'Yuqori'}
+                  </button>
+                ))}
+              </div>
+           </div>
+           
+           <div className="space-y-2">
+             <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Taxminiy vaqt</label>
+             <select
+                className="w-full bg-bg border border-border rounded-xl p-2 text-sm focus:outline-none"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
               >
-                {p}
-              </button>
-            ))}
-          </div>
+                {DURATIONS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label" htmlFor="task-duration">
-              Estimated time
-            </label>
-            <select
-              id="task-duration"
-              className="input"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-            >
-              {DURATIONS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {goals.length > 0 && (
-            <div>
-              <label className="label" htmlFor="task-goal">
-                Goal (optional)
-              </label>
-              <select
-                id="task-goal"
-                className="input"
+        {goals.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Maqsad bilan bog'lash</label>
+            <div className="flex items-center gap-3 bg-bg border border-border rounded-xl p-2">
+               <Target size={16} className="text-brand-silver ml-2" />
+               <select
+                className="flex-1 bg-transparent text-sm focus:outline-none"
                 value={goalId}
                 onChange={(e) => setGoalId(e.target.value)}
               >
-                <option value="">None</option>
+                <option value="">Maqsadsiz</option>
                 {goals.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
+                  <option key={g.id} value={g.id}>{g.title}</option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <FieldError>{error}</FieldError>
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button className="btn btn-ghost" onClick={onClose} disabled={pending}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={submit} disabled={pending}>
-            {pending ? <Spinner size={15} /> : <Plus size={16} />}
-            Add task
-          </button>
-        </div>
+        <button 
+          className="btn-primary w-full h-14 mt-4" 
+          onClick={submit} 
+          disabled={pending}
+        >
+          {pending ? <Spinner size={20} /> : <Plus size={20} className="mr-2" />}
+          Vazifa qo'shish
+        </button>
       </div>
     </Sheet>
   );

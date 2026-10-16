@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, BedDouble } from "lucide-react";
+import { Activity, BedDouble, Moon, Sunrise, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 import { Storage } from "@/lib/client/storage";
-import { guidanceForAge, statusForSession, STATUS_COPY, weeklySleepStats, bedtimeForWake, type AgeGroup } from "@/lib/sleep";
+import { guidanceForAge, statusForSession, STATUS_UI, weeklySleepStats, bedtimeForWake, type AgeGroup } from "@/lib/sleep";
 import { dayPartsInTz, formatDayShort, formatDuration, lastNDays, todayInTz } from "@/lib/time";
 import { SectionHeader, StatusPill } from "@/components/ui";
 import { SleepActions, SleepHistoryList } from "@/components/sleep/SleepControls";
@@ -46,131 +47,172 @@ export default function HealthPage() {
     const p = dayPartsInTz(tz, d);
     return { minutesAfterMidnight: p.hour * 60 + p.minute, dateIso: p.iso };
   };
-  const stats = weeklySleepStats(sessions.map((s:any) => ({...s, startedAt: new Date(s.startedAt), endedAt: s.endedAt?new Date(s.endedAt):null})), toLocal, today);
+  
+  const stats = weeklySleepStats(sessions.map((s:any) => ({
+    ...s, 
+    startedAt: new Date(s.startedAt), 
+    endedAt: s.endedAt ? new Date(s.endedAt) : null
+  })), toLocal, today);
 
   const days = lastNDays(tz, 7).map((iso) => {
     const session = sessions.find((s:any) => dayPartsInTz(tz, new Date(s.startedAt)).iso === iso);
     const c = weekCheckins.find((w:any) => w.day === iso);
+    
+    const sessionWakeTime = session?.endedAt 
+      ? new Date(session.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) 
+      : null;
+
     return {
-      iso, label: formatDayShort(iso),
+      iso, 
+      label: formatDayShort(iso),
       sleepMinutes: session?.durationMinutes ?? null,
-      energy: c?.energy ?? null, activityMinutes: c?.activityMinutes ?? null,
+      wakeTime: sessionWakeTime,
+      energy: c?.energy ?? null, 
+      activityMinutes: c?.activityMinutes ?? null,
     };
   });
 
   const lastNight = sessions[0] ?? null;
-  const lastStatus = lastNight?.durationMinutes != null ? statusForSession(lastNight.durationMinutes, target) : null;
+  const lastNightWakeTime = lastNight?.endedAt 
+    ? new Date(lastNight.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) 
+    : null;
+
+  const lastStatus = lastNight?.durationMinutes != null 
+    ? statusForSession(lastNight.durationMinutes, lastNightWakeTime, prefs.wakeTime) 
+    : null;
+
   const guidance = guidanceForAge((prefs.ageGroup as AgeGroup) ?? null);
   const suggestedBedtime = prefs.wakeTime && target ? bedtimeForWake(prefs.wakeTime, target) : null;
 
   const maxBarMinutes = Math.max(target ?? 480, ...days.map((d) => d.sleepMinutes ?? 0)) * 1.1;
 
   return (
-    <div className="animate-rise">
+    <div className="p-6 space-y-8 animate-fade pb-24">
       <header>
-        <h1 className="text-[26px] font-bold tracking-tight text-ink">Health</h1>
-        <p className="mt-1 text-[14px] text-ink2">
-          A light, honest view of your rest and energy. Nothing here is medical advice.
-        </p>
+        <h1 className="text-3xl font-extrabold text-ink tracking-tight italic">Salomatlik</h1>
+        <p className="text-ink-muted text-sm mt-1 leading-relaxed">Uyqu va umumiy holat tahlili.</p>
       </header>
 
-      <div className="mt-7 grid gap-5 lg:grid-cols-2">
-        <section className="card p-5 sm:p-6" aria-label="Sleep summary">
-          <SectionHeader title="Sleep" subtitle={lastNight ? "Last night" : "Get started"} />
-          <div className="mt-4">
-            {lastNight?.durationMinutes != null ? (
+      <div className="grid grid-cols-1 gap-6">
+        {/* Sleep Section */}
+        <section className="metallic-card p-6 border-white/5 bg-brand-dark overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-6 text-brand-silver/5">
+            <Moon size={120} />
+          </div>
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[30px] font-bold tracking-tight text-ink">{formatDuration(lastNight.durationMinutes)}</span>
-                  {target != null && <span className="text-[13px] text-ink3">of {formatDuration(target)} target</span>}
-                </div>
-                {lastStatus && (
-                  <StatusPill tone={STATUS_COPY[lastStatus].tone === "green" ? "green" : STATUS_COPY[lastStatus].tone === "amber" ? "amber" : "red"}>
-                    {STATUS_COPY[lastStatus].label}
-                  </StatusPill>
-                )}
-                <p className="mt-2 text-[11.5px] leading-relaxed text-ink3">This is time in bed — an estimate only, never a measure of sleep quality or a diagnosis.</p>
+                <h2 className="text-brand-light font-bold text-lg flex items-center gap-2">
+                  <Moon size={18} className="text-brand-silver" />
+                  Uyqu
+                </h2>
+                <p className="text-brand-silver/50 text-xs">Oxirgi tun natijasi</p>
+              </div>
+              {lastStatus && (
+                <StatusPill tone={(STATUS_UI as any)[lastStatus].tone}>
+                  {(STATUS_UI as any)[lastStatus].label}
+                </StatusPill>
+              )}
+            </div>
+
+            {lastNight?.durationMinutes != null ? (
+              <div className="flex items-end gap-3 mb-8">
+                <span className="text-5xl font-black text-brand-light tracking-tighter">
+                  {formatDuration(lastNight.durationMinutes)}
+                </span>
+                <span className="text-brand-silver/40 text-sm font-medium mb-2 uppercase tracking-widest">
+                  / {formatDuration(target)} target
+                </span>
               </div>
             ) : (
-              <p className="text-[13.5px] leading-relaxed text-ink2">No sessions recorded yet. Start tracking tonight — tap the button when you get into bed and when you wake up.</p>
+              <p className="text-brand-silver/60 text-sm mb-8 italic">Hali ma'lumotlar yo'q. Bugun boshlang!</p>
             )}
 
-            <div className="mt-5 border-t border-line pt-5">
-              <SleepActions active={activeSleep ? { id: activeSleep.id, startedAt: activeSleep.startedAt } : null} timezone={tz} targetMinutes={target} bedtimeSuggestion={prefs.bedtime ?? suggestedBedtime} />
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-5 sm:grid-cols-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">7-day avg</p>
-                <p className="mt-0.5 text-[15px] font-bold text-ink">{stats.averageMinutes != null ? formatDuration(stats.averageMinutes) : "—"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Nights</p>
-                <p className="mt-0.5 text-[15px] font-bold text-ink">{stats.nightsTracked}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Bedtime</p>
-                <p className="mt-0.5 text-[15px] font-bold text-ink">{stats.bedtimeConsistency != null ? `±${stats.bedtimeConsistency}m` : "—"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Wake</p>
-                <p className="mt-0.5 text-[15px] font-bold text-ink">{stats.wakeConsistency != null ? `±${stats.wakeConsistency}m` : "—"}</p>
-              </div>
-            </div>
-            {(stats.bedtimeConsistency == null || stats.wakeConsistency == null) && (
-              <p className="mt-3 text-[11.5px] text-ink3">Consistency appears once at least 3 nights are tracked in the current week.</p>
-            )}
+            <SleepActions active={activeSleep ? { id: activeSleep.id, startedAt: activeSleep.startedAt } : null} timezone={tz} targetMinutes={target} bedtimeSuggestion={prefs.bedtime ?? suggestedBedtime} />
           </div>
         </section>
 
-        <section className="card p-5 sm:p-6" aria-label="Daily check-in">
-          <SectionHeader title="Daily check-in" subtitle="Optional and quick — skip it anytime" />
-          <div className="mt-4 space-y-5">
-            <div>
-              <span className="label">How are you feeling today?</span>
-              <EnergyPicker current={checkin?.energy ?? null} />
-            </div>
-            <ActivityLogger initialMinutes={checkin?.activityMinutes ?? null} initialNote={checkin?.note ?? null} />
+        {/* Energy & Activity */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-ink tracking-tight italic px-1 flex items-center gap-2">
+             <Activity size={20} className="text-brand-silver" />
+             Bugungi holat
+          </h2>
+          
+          <div className="metallic-card p-6 space-y-8">
+             <div className="space-y-3">
+                <p className="text-[10px] font-bold text-ink-muted uppercase tracking-widest px-1">Energiyangiz qanday?</p>
+                <EnergyPicker current={checkin?.energy ?? null} />
+             </div>
+             
+             <div className="space-y-3 pt-4 border-t border-border">
+                <ActivityLogger initialMinutes={checkin?.activityMinutes ?? null} initialNote={checkin?.note ?? null} />
+             </div>
           </div>
+        </section>
+
+        {/* Weekly Stats Chart */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-ink tracking-tight italic px-1 flex items-center gap-2">
+             <TrendingUp size={20} className="text-brand-silver" />
+             Haftalik ko'rinish
+          </h2>
+          
+          <div className="metallic-card p-6 bg-surface">
+            <div className="flex items-end justify-between h-40 gap-2 mb-6">
+              {days.map((d) => {
+                const dayStatus = d.sleepMinutes != null 
+                  ? statusForSession(d.sleepMinutes, d.wakeTime, prefs.wakeTime) 
+                  : null;
+                
+                const tone = d.sleepMinutes == null ? "bg-border" : 
+                             dayStatus === "met" ? "bg-emerald-500" :
+                             dayStatus === "short" ? "bg-amber-500" : "bg-red-500";
+                             
+                const height = d.sleepMinutes != null ? Math.max(10, (d.sleepMinutes / maxBarMinutes) * 100) : 5;
+                
+                return (
+                  <div key={d.iso} className="flex-1 flex flex-col items-center gap-2">
+                    <div className="w-full flex items-end justify-center h-full">
+                      <motion.div 
+                        initial={{ height: 0 }}
+                        animate={{ height: `${height}%` }}
+                        className={`w-full max-w-[20px] rounded-t-lg ${tone} shadow-sm`}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-ink-muted uppercase">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-border">
+               <div>
+                  <p className="text-[9px] font-black text-ink-muted uppercase tracking-wider">O'rtacha uyqu</p>
+                  <p className="text-lg font-bold text-ink">{stats.averageMinutes ? formatDuration(stats.averageMinutes) : "—"}</p>
+               </div>
+               <div>
+                  <p className="text-[9px] font-black text-ink-muted uppercase tracking-wider">Muntazamlik</p>
+                  <p className="text-lg font-bold text-ink">{stats.wakeConsistency ? `±${stats.wakeConsistency}m` : "—"}</p>
+               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* History */}
+        <section className="space-y-4">
+           <h2 className="text-xl font-bold text-ink tracking-tight italic px-1">Tarix</h2>
+           <div className="metallic-card bg-surface overflow-hidden">
+             <SleepHistoryList sessions={sessions} timezone={tz} targetMinutes={target} />
+           </div>
         </section>
       </div>
 
-      <section className="card mt-5 p-5 sm:p-6" aria-label="Weekly overview">
-        <SectionHeader title="This week" subtitle={`Sleep vs your ${formatDuration(target)} target · energy · activity`} />
-        <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3" role="img" aria-label="Weekly sleep, energy and activity chart">
-          {days.map((d) => {
-            const status = d.sleepMinutes != null ? statusForSession(d.sleepMinutes, target) : null;
-            const tone = d.sleepMinutes == null ? "bg-line" : status == null ? "bg-line-strong" : STATUS_COPY[status].tone === "green" ? "bg-accent" : STATUS_COPY[status].tone === "amber" ? "bg-amber" : "bg-red";
-            const height = d.sleepMinutes != null ? Math.max(6, (d.sleepMinutes / maxBarMinutes) * 96) : 4;
-            return (
-              <div key={d.iso} className="flex flex-col items-center gap-1.5">
-                <div className="flex h-24 w-full items-end justify-center">
-                  <div className={`w-full max-w-7 rounded-md ${tone}`} style={{ height }} title={d.sleepMinutes != null ? `${d.label}: ${formatDuration(d.sleepMinutes)}` : `${d.label}: not tracked`} />
-                </div>
-                <span className="text-[11px] font-medium text-ink3">{d.label}</span>
-                <span className={`h-1.5 w-1.5 rounded-full ${d.energy === "energized" ? "bg-accent" : d.energy === "okay" ? "bg-amber" : d.energy === "tired" ? "bg-red" : "bg-line"}`} title={d.energy ? `Energy: ${d.energy}` : "No check-in"} />
-                <span className="flex h-3 items-center text-[10px] font-semibold text-ink3">{d.activityMinutes != null ? `${d.activityMinutes}m` : ""}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="card mt-5 p-5 sm:p-6" aria-label="Sleep history">
-        <SectionHeader title="Recent nights" subtitle="Correct a session if you forgot to stop tracking" action={<BedDouble size={16} className="text-ink3" />} />
-        <div className="mt-2">
-          {sessions.length === 0 ? (
-            <p className="py-4 text-[13.5px] text-ink2">Nothing recorded yet. Your sessions will appear here once you track your first night.</p>
-          ) : (
-            <SleepHistoryList sessions={sessions} timezone={tz} targetMinutes={target} />
-          )}
-        </div>
-      </section>
-
-      <div className="mt-5 rounded-[14px] border border-line bg-sunken p-4 text-[12.5px] leading-relaxed text-ink2">
-        <p className="flex items-start gap-2">
-          <Activity size={14} className="mt-0.5 shrink-0 text-ink3" />
-          LIFEOS is not a medical device. Durations are self-reported estimates, and guidance (~{guidance.label} for your age group) is general information — if you&rsquo;re concerned about your sleep or health, please talk to a qualified professional.
+      <div className="metallic-card bg-brand-dark/5 p-4 border-white/5">
+        <p className="text-[10px] text-ink-muted leading-relaxed text-center">
+          LifeOS tibbiy qurilma emas. Ma'lumotlar foydalanuvchi tomonidan kiritilgan va faqat tavsiya xarakteriga ega. 
+          Sog'ligingiz bilan bog'liq muammolar bo'lsa mutaxassisga murojaat qiling.
         </p>
       </div>
     </div>

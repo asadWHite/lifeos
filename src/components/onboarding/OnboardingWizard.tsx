@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShieldAlert, Sparkles, Bell, Sun, Moon, Laptop } from "lucide-react";
 import {
   AGE_GROUPS,
   COMMITMENTS,
@@ -14,7 +14,6 @@ import {
   PHONE_USE,
   PLANNING_STYLES,
   STEPS,
-  TOTAL_QUESTION_STEPS,
   toggleDifficulty,
   toggleMulti,
   validateStep,
@@ -26,6 +25,7 @@ import { formatDuration } from "@/lib/time";
 import { Storage, generateId } from "@/lib/client/storage";
 import { todayInTz } from "@/lib/time";
 import { FieldError, Spinner, Toggle } from "@/components/ui";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Phase = "questions" | "gate" | "summary";
 
@@ -35,56 +35,59 @@ function OptionCard({
   onSelect,
   title,
   description,
+  icon: Icon
 }: {
   name: string;
   checked: boolean;
   onSelect: () => void;
   title: string;
   description?: string;
+  icon?: any;
 }) {
   return (
     <label
-      className={`block cursor-pointer rounded-[14px] border p-4 transition-all duration-150 ${
+      className={`block cursor-pointer rounded-2xl border p-4 transition-all duration-200 ${
         checked
-          ? "border-accent-line bg-accent-soft shadow-sm"
-          : "border-line bg-surface hover:border-line-strong"
+          ? "border-brand-silver bg-brand-silver/10 shadow-metallic"
+          : "border-white/5 bg-white/5 hover:bg-white/10"
       }`}
     >
-      <input
-        type="radio"
-        name={name}
-        checked={checked}
-        onChange={onSelect}
-        className="sr-only"
-      />
-      <span className="flex items-center justify-between gap-3">
-        <span>
-          <span className={`block text-[14.5px] font-semibold ${checked ? "text-accent-ink" : "text-ink"}`}>
+      <input type="radio" name={name} checked={checked} onChange={onSelect} className="sr-only" />
+      <div className="flex items-center gap-4">
+        {Icon && (
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${checked ? 'bg-brand-silver text-brand-dark' : 'bg-white/10 text-brand-silver'}`}>
+            <Icon size={20} />
+          </div>
+        )}
+        <div className="flex-1">
+          <span className={`block text-sm font-semibold ${checked ? "text-brand-light" : "text-brand-silver"}`}>
             {title}
           </span>
           {description && (
-            <span className="mt-0.5 block text-[12.5px] text-ink2">{description}</span>
+            <span className="mt-0.5 block text-xs text-brand-silver/60 leading-relaxed">{description}</span>
           )}
-        </span>
-        <span
-          aria-hidden
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors ${
-            checked ? "border-accent bg-accent text-white" : "border-line-strong bg-surface"
-          }`}
-        >
-          {checked && <Check size={12} strokeWidth={3} />}
-        </span>
-      </span>
+        </div>
+        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${checked ? 'bg-brand-silver border-brand-silver' : 'border-white/20'}`}>
+          {checked && <Check size={12} strokeWidth={4} className="text-brand-dark" />}
+        </div>
+      </div>
     </label>
   );
 }
 
 function StepShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="animate-rise">
-      <h1 className="text-[24px] font-bold leading-tight tracking-tight text-ink sm:text-[28px]">{title}</h1>
-      <p className="mt-2 text-[14px] text-ink2">{subtitle}</p>
-      <div className="mt-7">{children}</div>
+    <div className="flex flex-col min-h-full">
+      <motion.div
+        initial={{ y: 10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -10, opacity: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <h1 className="text-2xl font-bold text-brand-light tracking-tight">{title}</h1>
+        <p className="mt-2 text-brand-silver/70 text-sm leading-relaxed">{subtitle}</p>
+        <div className="mt-8">{children}</div>
+      </motion.div>
     </div>
   );
 }
@@ -106,504 +109,301 @@ export function OnboardingWizard({
   const [pending, start] = useTransition();
 
   const def = STEPS[step];
-  const isLast = step === TOTAL_QUESTION_STEPS - 1;
+  const totalSteps = STEPS.length;
+  const isLast = step === totalSteps - 1;
 
   function set<K extends keyof OnboardingValues>(key: K, value: OnboardingValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setError("");
   }
 
-  async function persist(stepIndex: number) {
+  const persist = (stepIndex: number) => {
     const pid = Storage.getCurrentProfileId();
     if (!pid) return;
-    const patch: any = { onboardingStep: stepIndex + 1 };
-    if (values.ageGroup !== undefined) patch.ageGroup = values.ageGroup ?? null;
-    if (values.lifeStage !== undefined) patch.lifeStage = values.lifeStage ?? null;
-    if (values.lifeStageOther !== undefined) patch.lifeStageOther = values.lifeStageOther ?? null;
-    if (values.interests !== undefined) patch.interests = values.interests;
-    if (values.interestsOther !== undefined) patch.interestsOther = values.interestsOther ?? null;
-    if (values.objectives !== undefined) patch.objectives = values.objectives;
-    if (values.objectivesOther !== undefined) patch.objectivesOther = values.objectivesOther ?? null;
-    if (values.wakeTime !== undefined) patch.wakeTime = values.wakeTime ?? null;
-    if (values.bedtime !== undefined) patch.bedtime = values.bedtime ?? null;
-    if (values.commitments !== undefined) patch.commitments = values.commitments ?? null;
-    if (values.personalTime !== undefined) patch.personalTime = values.personalTime ?? null;
-    if (values.weekendVaries !== undefined) patch.weekendVaries = values.weekendVaries ?? null;
-    if (values.planningStyle !== undefined) patch.planningStyle = values.planningStyle ?? null;
-    if (values.difficulties !== undefined) patch.difficulties = values.difficulties;
-    if (values.phoneBeforeBed !== undefined) patch.phoneBeforeBed = values.phoneBeforeBed ?? null;
-    
     const current = Storage.getPrefs(pid);
-    Storage.savePrefs({ ...current, ...patch });
-  }
+    Storage.savePrefs({ 
+      ...current, 
+      ...values, 
+      profileId: pid,
+      onboardingStep: stepIndex + 1,
+      updatedAt: new Date()
+    });
+  };
 
-  function back() {
-    setError("");
-    if (phase === "gate") {
-      setPhase("questions");
-      return;
-    }
-    if (step > 0) setStep(step - 1);
-  }
-
-  async function saveAndGo(nextStep: number) {
-    try {
-      await persist(step);
-      setStep(nextStep);
-    } catch {
-      setError("Couldn't save right now — check your connection and try again.");
-    }
-  }
-
-  async function next() {
+  const next = () => {
     const err = validateStep(step, values);
-    if (err) {
-      setError(err);
-      return;
-    }
-    if (def.id === "age" && values.ageGroup === "u13") {
-      setPhase("gate");
-      return;
-    }
-    if (isLast) {
-      await finish();
-      return;
-    }
-    await saveAndGo(step + 1);
-  }
+    if (err) { setError(err); return; }
+    if (def.id === "age" && values.ageGroup === "u13") { setPhase("gate"); return; }
+    if (isLast) { finish(); return; }
+    persist(step);
+    setStep(step + 1);
+    window.scrollTo(0, 0);
+  };
 
-  async function skip() {
-    await saveAndGo(step + 1);
-  }
+  const back = () => {
+    setError("");
+    if (phase === "gate") { setPhase("questions"); return; }
+    if (step > 0) setStep(step - 1);
+    window.scrollTo(0, 0);
+  };
 
-  async function finish() {
-    start(async () => {
-      await persist(step);
+  const plan = useMemo(() => personalize({ ...values, sleepTargetMinutes: null }), [values]);
+
+  const finish = () => {
+    start(() => {
       const pid = Storage.getCurrentProfileId();
-      if (!pid) { setError("Session lost."); return; }
-      
+      if (!pid) return;
       const p = Storage.getProfile(pid);
-      if (!p) { setError("Profile not found."); return; }
+      if (!p) return;
 
-      const prefs = Storage.getPrefs(pid);
-      const target = prefs.sleepTargetMinutes ?? guidanceForAge((prefs.ageGroup as AgeGroup) ?? null).recommendedMinutes;
+      const target = guidanceForAge((values.ageGroup as AgeGroup) ?? null).recommendedMinutes;
       const today = todayInTz(p.timezone);
 
-      // Save defaults
-      Storage.savePrefs({ ...prefs, sleepTargetMinutes: target, onboardingStep: 0 });
+      Storage.savePrefs({ 
+        ...Storage.getPrefs(pid),
+        ...values, 
+        profileId: pid,
+        sleepTargetMinutes: target, 
+        onboardingStep: 0,
+        updatedAt: new Date()
+      });
+      
+      // Cleanup lifeos starter tasks
+      Storage.getTasks().filter(t => t.profileId === pid && t.source === "lifeos").forEach(t => Storage.deleteTask(t.id));
 
-      // Create starter plan
-      const existingTasks = Storage.getTasks().filter(t => t.profileId === pid && t.source === "lifeos" && t.status === "todo");
-      existingTasks.forEach(t => Storage.deleteTask(t.id));
-
-      for (const t of plan.starterTasks) {
+      plan.starterTasks.forEach(t => {
         Storage.saveTask({
           id: generateId(), profileId: pid, title: t.title, priority: t.priority,
           durationMinutes: t.durationMinutes ?? null, dueDate: today, source: "lifeos",
           notes: null, status: "todo", goalId: null, completedAt: null, createdAt: new Date()
         });
-      }
+      });
 
       if (plan.suggestedGoal) {
-        const hasSame = Storage.getGoals().find(g => g.profileId === pid && g.title === plan.suggestedGoal?.title);
-        if (!hasSame) {
-          Storage.saveGoal({
-            id: generateId(), profileId: pid, title: plan.suggestedGoal.title,
-            description: plan.suggestedGoal.description, category: plan.suggestedGoal.category,
-            source: "lifeos", targetDate: null, status: "active", metricTarget: null,
-            metricUnit: null, metricProgress: 0, createdAt: new Date()
-          });
-        }
+        Storage.saveGoal({
+          id: generateId(), profileId: pid, title: plan.suggestedGoal.title,
+          description: plan.suggestedGoal.description, category: plan.suggestedGoal.category,
+          source: "lifeos", status: "active", metricProgress: 0, metricTarget: null, 
+          metricUnit: null, targetDate: null, createdAt: new Date()
+        });
       }
 
       Storage.saveProfile({ ...p, onboardingCompleted: true });
       setPhase("summary");
     });
-  }
+  };
 
-  const plan = useMemo(
-    () =>
-      personalize({
-        ageGroup: values.ageGroup,
-        lifeStage: values.lifeStage,
-        interests: values.interests,
-        objectives: values.objectives,
-        planningStyle: values.planningStyle,
-        difficulties: values.difficulties,
-        personalTime: values.personalTime,
-        sleepTargetMinutes: null,
-      }),
-    [values],
-  );
-
-  // ------------------------------------------------ under-13 gate ----------
   if (phase === "gate") {
     return (
-      <div className="w-full max-w-xl animate-rise">
-        <div className="card p-6 sm:p-8">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-soft text-amber">
-            <ShieldAlert size={20} strokeWidth={1.9} />
-          </span>
-          <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
-            Accounts need to wait until 13+
-          </h1>
-          <div className="mt-3 space-y-3 text-[14px] leading-relaxed text-ink2">
-            <p>
-              Based on that answer, LIFEOS can&rsquo;t open an account right now. Accounts for
-              children under 13 require <strong className="font-semibold text-ink">verifiable parent or guardian consent</strong>,
-              strict data-minimization, and guardian rights to review and delete the child&rsquo;s data.
-            </p>
-            <p>
-              Those child-privacy safeguards are intentionally not part of this version
-              yet — so rather than quietly collecting data from a child, we stop here.
-            </p>
+      <div className="w-full max-w-xl p-4">
+        <div className="metallic-card bg-brand-dark p-8 border-brand-silver/20">
+          <div className="w-14 h-14 rounded-2xl bg-brand-silver/10 flex items-center justify-center text-brand-silver mb-6">
+            <ShieldAlert size={30} />
           </div>
-          <div className="mt-6 flex gap-2">
-            <button className="btn btn-secondary" onClick={back}>
-              <ArrowLeft size={15} />
-              Back
-            </button>
-          </div>
+          <h1 className="text-2xl font-bold text-brand-light">Yosh chegarasi</h1>
+          <p className="mt-4 text-brand-silver/80 leading-relaxed text-sm">
+            LifeOS tizimidan foydalanish uchun foydalanuvchi kamida 13 yoshda bo'lishi kerak. 
+            Bu xavfsizlik va shaxsiy ma'lumotlarni himoya qilish talablariga mos keladi.
+          </p>
+          <button className="btn-primary w-full mt-8" onClick={back}>
+            <ArrowLeft size={18} className="mr-2" /> Orqaga qaytish
+          </button>
         </div>
       </div>
     );
   }
 
-  // ------------------------------------------------------------- summary ---
   if (phase === "summary") {
-    const target = guidanceForAge((values.ageGroup as AgeGroup) ?? null);
     return (
-      <div className="w-full max-w-xl animate-rise">
-        <div className="text-center">
-          <span className="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-accent-soft text-accent-ink">
-            <Sparkles size={24} strokeWidth={1.8} />
-          </span>
-          <h1 className="mt-4 text-[28px] font-bold tracking-tight text-ink">
-            You&rsquo;re all set, {profileName}
-          </h1>
-          <p className="mx-auto mt-2 max-w-sm text-[14.5px] leading-relaxed text-ink2">
-            LIFEOS configured a small starting point from your answers. Everything below
-            was created just now — and everything stays fully editable.
+      <div className="w-full max-w-xl p-4 text-center">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+          <div className="w-20 h-20 rounded-[28px] bg-brand-silver/10 flex items-center justify-center text-brand-silver mx-auto mb-8 shadow-metallic">
+            <Sparkles size={40} />
+          </div>
+          <h1 className="text-3xl font-bold text-brand-light mb-4">Tayyor, {profileName}!</h1>
+          <p className="text-brand-silver/70 mb-10 leading-relaxed">
+            Sizning javoblaringiz asosida LifeOS shaxsiy dashboardingizni shakllantirdi.
           </p>
-        </div>
-        <div className="card mt-7 p-6 text-left">
-          <h2 className="section-title">What LIFEOS set up for you</h2>
-          <ul className="mt-4 space-y-2.5">
-            {plan.insights.map((line) => (
-              <li key={line} className="flex gap-2.5 text-[13.5px] leading-relaxed text-ink2">
-                <Check size={15} className="mt-0.5 shrink-0 text-accent" strokeWidth={2.5} />
-                {line}
-              </li>
-            ))}
-          </ul>
-          <div className="divider my-5" />
-          <p className="text-[13.5px] text-ink2">
-            <strong className="font-semibold text-ink">Starter plan for today:</strong>{" "}
-            {plan.starterTasks.map((t) => t.title).join(" · ")}
-          </p>
-          <p className="mt-2 text-[13.5px] text-ink2">
-            <strong className="font-semibold text-ink">Sleep target:</strong>{" "}
-            {formatDuration(target.recommendedMinutes)} per night (typical guidance for your age group is {target.label}). Adjust anytime in Settings.
-          </p>
-        </div>
-        <button className="btn btn-primary btn-lg mt-7 w-full" onClick={() => router.push("/home")}>
-          Open my dashboard
-          <ArrowRight size={16} />
-        </button>
+          
+          <div className="metallic-card bg-brand-dark p-6 border-brand-silver/20 text-left mb-10">
+            <h2 className="text-brand-light font-bold mb-4 flex items-center gap-2">
+              <Check size={18} className="text-brand-silver" strokeWidth={3} />
+              Nimalar o'zgardi?
+            </h2>
+            <ul className="space-y-3">
+              {plan.insights.map((insight, i) => (
+                <li key={i} className="text-xs text-brand-silver/80 flex items-start gap-3">
+                  <div className="w-1 h-1 rounded-full bg-brand-silver mt-1.5 shrink-0" />
+                  {insight}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button className="btn-primary w-full h-14 text-lg" onClick={() => router.push("/home")}>
+            Dashboardni ochish
+            <ArrowRight size={20} className="ml-2" />
+          </button>
+        </motion.div>
       </div>
     );
   }
 
-  // ----------------------------------------------------------- questions ---
   return (
-    <div className="w-full max-w-xl">
-      {/* Progress */}
-      <div className="mb-8" aria-hidden>
-        <div className="flex items-baseline justify-between text-[12.5px] font-semibold text-ink3">
-          <span>
-            Step {step + 1} of {TOTAL_QUESTION_STEPS}
-          </span>
+    <div className="w-full max-w-xl p-4 flex flex-col h-full">
+      {/* Header / Progress */}
+      <div className="mb-10">
+        <div className="flex justify-between items-end mb-2">
+          <span className="text-[10px] font-bold text-brand-silver/50 uppercase tracking-widest">Onboarding</span>
+          <span className="text-xs font-bold text-brand-silver uppercase">{step + 1} / {totalSteps}</span>
         </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-line">
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
-            style={{ width: `${((step + 1) / TOTAL_QUESTION_STEPS) * 100}%` }}
+        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-brand-silver"
+            initial={{ width: 0 }}
+            animate={{ width: `${((step + 1) / totalSteps) * 100}%` }}
           />
         </div>
       </div>
 
-      <div key={step}>
-        {def.id === "age" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Age group">
-              {AGE_GROUPS.map((o) => (
-                <OptionCard
-                  key={o.id}
-                  name="ageGroup"
-                  checked={values.ageGroup === o.id}
-                  onSelect={() => set("ageGroup", o.id)}
-                  title={o.label}
-                />
-              ))}
-            </div>
-          </StepShell>
-        )}
-
-        {def.id === "stage" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="space-y-2.5" role="radiogroup" aria-label="Life stage">
-              {LIFE_STAGES.map((o) => (
-                <OptionCard
-                  key={o.id}
-                  name="lifeStage"
-                  checked={values.lifeStage === o.id}
-                  onSelect={() => set("lifeStage", o.id)}
-                  title={o.label}
-                />
-              ))}
-            </div>
-            {values.lifeStage === "other" && (
-              <div className="mt-3 animate-fade">
-                <label className="label" htmlFor="stage-other">
-                  Tell us briefly (optional)
-                </label>
-                <input
-                  id="stage-other"
-                  className="input"
-                  placeholder="e.g. Between careers, gap year…"
-                  value={values.lifeStageOther}
-                  onChange={(e) => set("lifeStageOther", e.target.value)}
-                  maxLength={120}
-                />
+      <AnimatePresence mode="wait">
+        <StepShell key={step} title={def.title} subtitle={def.subtitle}>
+          <div className="space-y-3">
+            {def.id === "age" && (
+              <div className="grid grid-cols-1 gap-3">
+                {AGE_GROUPS.map(o => (
+                  <OptionCard key={o.id} name="age" checked={values.ageGroup === o.id} onSelect={() => set("ageGroup", o.id)} title={o.label} />
+                ))}
               </div>
             )}
-          </StepShell>
-        )}
 
-        {def.id === "interests" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Interests">
-              {INTERESTS.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  className="chip"
-                  data-selected={values.interests.includes(o.id)}
-                  aria-pressed={values.interests.includes(o.id)}
-                  onClick={() => set("interests", toggleMulti(values.interests, o.id))}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            {values.interests.includes("other") && (
-              <input
-                className="input mt-4 animate-fade"
-                placeholder="Anything else you're into? (optional)"
-                value={values.interestsOther}
-                onChange={(e) => set("interestsOther", e.target.value)}
-                maxLength={120}
-                aria-label="Other interests"
-              />
+            {def.id === "stage" && (
+              <div className="space-y-3">
+                {LIFE_STAGES.map(o => (
+                  <OptionCard key={o.id} name="stage" checked={values.lifeStage === o.id} onSelect={() => set("lifeStage", o.id)} title={o.label} />
+                ))}
+              </div>
             )}
-          </StepShell>
-        )}
 
-        {def.id === "objectives" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Objectives">
-              {OBJECTIVES.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  className="chip"
-                  data-selected={values.objectives.includes(o.id)}
-                  aria-pressed={values.objectives.includes(o.id)}
-                  onClick={() => set("objectives", toggleMulti(values.objectives, o.id))}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            {values.objectives.includes("other") && (
-              <input
-                className="input mt-4 animate-fade"
-                placeholder="What's your other objective? (optional)"
-                value={values.objectivesOther}
-                onChange={(e) => set("objectivesOther", e.target.value)}
-                maxLength={120}
-                aria-label="Other objectives"
-              />
+            {def.id === "interests" && (
+              <div className="grid grid-cols-2 gap-2">
+                {INTERESTS.map(o => (
+                  <button 
+                    key={o.id}
+                    onClick={() => set("interests", toggleMulti(values.interests, o.id))}
+                    className={`p-3 rounded-2xl border text-xs font-medium transition-all ${
+                      values.interests.includes(o.id) 
+                      ? 'bg-brand-silver border-brand-silver text-brand-dark shadow-metallic' 
+                      : 'bg-white/5 border-white/5 text-brand-silver'
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             )}
-          </StepShell>
-        )}
 
-        {def.id === "schedule" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label" htmlFor="wake-time">
-                    Typical wake-up <span className="font-normal text-ink3">(optional)</span>
-                  </label>
-                  <input
-                    id="wake-time"
-                    type="time"
-                    className="input"
-                    value={values.wakeTime ?? ""}
-                    onChange={(e) => set("wakeTime", e.target.value || null)}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="bed-time">
-                    Typical bedtime <span className="font-normal text-ink3">(optional)</span>
-                  </label>
-                  <input
-                    id="bed-time"
-                    type="time"
-                    className="input"
-                    value={values.bedtime ?? ""}
-                    onChange={(e) => set("bedtime", e.target.value || null)}
-                  />
-                </div>
+            {def.id === "objectives" && (
+              <div className="grid grid-cols-1 gap-3">
+                {OBJECTIVES.map(o => (
+                  <OptionCard key={o.id} name="objective" checked={values.objectives.includes(o.id)} onSelect={() => set("objectives", toggleMulti(values.objectives, o.id))} title={o.label} />
+                ))}
               </div>
-
-              <div>
-                <span className="label">Weekday commitments</span>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Weekday commitments">
-                  {COMMITMENTS.map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className="chip"
-                      data-selected={values.commitments === o.id}
-                      onClick={() => set("commitments", values.commitments === o.id ? null : o.id)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="label">When is your personal time?</span>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Personal time">
-                  {PERSONAL_TIME.map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className="chip"
-                      data-selected={values.personalTime === o.id}
-                      onClick={() => set("personalTime", values.personalTime === o.id ? null : o.id)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between rounded-[14px] border border-line bg-surface p-4">
-                <div>
-                  <p className="text-[14px] font-semibold text-ink">Weekends differ</p>
-                  <p className="mt-0.5 text-[12.5px] text-ink2">
-                    My weekend schedule is very different from weekdays
-                  </p>
-                </div>
-                <Toggle
-                  label="Weekends differ from weekdays"
-                  checked={values.weekendVaries ?? false}
-                  onChange={(v) => set("weekendVaries", v)}
-                />
-              </div>
-            </div>
-          </StepShell>
-        )}
-
-        {def.id === "planning" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="space-y-2.5" role="radiogroup" aria-label="Planning preference">
-              {PLANNING_STYLES.map((o) => (
-                <OptionCard
-                  key={o.id}
-                  name="planningStyle"
-                  checked={values.planningStyle === o.id}
-                  onSelect={() => set("planningStyle", o.id)}
-                  title={o.label}
-                  description={o.description}
-                />
-              ))}
-            </div>
-          </StepShell>
-        )}
-
-        {def.id === "difficulties" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulties">
-              {DIFFICULTIES.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  className="chip"
-                  data-selected={values.difficulties.includes(o.id)}
-                  aria-pressed={values.difficulties.includes(o.id)}
-                  onClick={() => set("difficulties", toggleDifficulty(values.difficulties, o.id))}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-4 text-[12.5px] leading-relaxed text-ink3">
-              These help LIFEOS decide what to emphasize — they&rsquo;re never used to label or judge you.
-            </p>
-          </StepShell>
-        )}
-
-        {def.id === "phone" && (
-          <StepShell title={def.title} subtitle={def.subtitle}>
-            <div className="space-y-2.5" role="radiogroup" aria-label="Phone use before sleep">
-              {PHONE_USE.map((o) => (
-                <OptionCard
-                  key={o.id}
-                  name="phoneBeforeBed"
-                  checked={values.phoneBeforeBed === o.id}
-                  onSelect={() => set("phoneBeforeBed", values.phoneBeforeBed === o.id ? null : o.id)}
-                  title={o.label}
-                />
-              ))}
-            </div>
-            {values.phoneBeforeBed === "often" && (
-              <p className="mt-4 animate-fade rounded-[14px] bg-amber-soft p-4 text-[13px] leading-relaxed text-amber">
-                A gentle wind-down reminder can help — you&rsquo;ll find one in Settings → Sleep.
-                (LIFEOS can&rsquo;t measure real screen time unless a supported integration is connected.)
-              </p>
             )}
-          </StepShell>
+
+            {def.id === "schedule" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-brand-silver uppercase tracking-widest px-1">Uyg'onish vaqti</label>
+                    <input type="time" value={values.wakeTime || ""} onChange={e => set("wakeTime", e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-brand-light focus:outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-brand-silver uppercase tracking-widest px-1">Uxshash vaqti</label>
+                    <input type="time" value={values.bedtime || ""} onChange={e => set("bedtime", e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-brand-light focus:outline-none" />
+                  </div>
+                </div>
+                <div className="metallic-card bg-brand-dark/50 p-5 border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <p className="text-sm font-semibold text-brand-light">Dam olish kunlari</p>
+                      <p className="text-[10px] text-brand-silver/50 uppercase tracking-widest mt-1">Rejim o'zgaradimi?</p>
+                    </div>
+                    <Toggle label="Varies" checked={values.weekendVaries || false} onChange={v => set("weekendVaries", v)} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {def.id === "planning" && (
+              <div className="space-y-3">
+                {PLANNING_STYLES.map(o => (
+                  <OptionCard key={o.id} name="planning" checked={values.planningStyle === o.id} onSelect={() => set("planningStyle", o.id)} title={o.label} description={o.description} />
+                ))}
+              </div>
+            )}
+
+            {def.id === "difficulties" && (
+              <div className="grid grid-cols-1 gap-3">
+                {DIFFICULTIES.map(o => (
+                  <OptionCard key={o.id} name="diff" checked={values.difficulties.includes(o.id)} onSelect={() => set("difficulties", toggleDifficulty(values.difficulties, o.id))} title={o.label} />
+                ))}
+              </div>
+            )}
+
+            {def.id === "phone" && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-brand-silver uppercase tracking-widest mb-2 px-1">Uxshashdan oldin telefondan foydalanish</p>
+                {PHONE_USE.map(o => (
+                  <OptionCard key={o.id} name="phone" checked={values.phoneBeforeBed === o.id} onSelect={() => set("phoneBeforeBed", o.id)} title={o.label} />
+                ))}
+              </div>
+            )}
+
+            {def.id === "reminders" && (
+              <div className="metallic-card bg-brand-dark/50 p-6 border-brand-silver/10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-silver/10 flex items-center justify-center text-brand-silver">
+                    <Bell size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-brand-light font-bold">Telegram bildirishnomalari</h3>
+                    <p className="text-xs text-brand-silver/60">Sizga o'z vaqtida eslatib turamiz</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
+                  <span className="text-sm font-medium text-brand-silver">Eslatmalar yoqilsinmi?</span>
+                  <Toggle label="Reminders" checked={values.reminderEnabled} onChange={v => set("reminderEnabled", v)} />
+                </div>
+              </div>
+            )}
+
+            {def.id === "appearance" && (
+              <div className="grid grid-cols-1 gap-3">
+                <OptionCard icon={Moon} name="theme" checked={values.theme === 'dark'} onSelect={() => set("theme", 'dark')} title="To'q rejim (Dark)" description="Tungi vaqtda ko'zga qulay" />
+                <OptionCard icon={Sun} name="theme" checked={values.theme === 'light'} onSelect={() => set("theme", 'light')} title="Yorug' rejim (Light)" description="Kunduzgi yorug'likda aniq" />
+                <OptionCard icon={Laptop} name="theme" checked={values.theme === 'system'} onSelect={() => set("theme", 'system')} title="Tizimga moslashish" description="Qurilma sozlamalariga qarab" />
+              </div>
+            )}
+          </div>
+        </StepShell>
+      </AnimatePresence>
+
+      <div className="mt-auto pt-10 flex gap-3">
+        {step > 0 && (
+          <button className="h-14 px-6 rounded-2xl bg-white/5 text-brand-silver hover:bg-white/10 transition-all font-bold flex items-center justify-center" onClick={back}>
+            <ArrowLeft size={20} />
+          </button>
         )}
-      </div>
-
-      <FieldError>{error}</FieldError>
-
-      {/* Controls */}
-      <div className="mt-9 flex items-center justify-between">
-        <button
-          className="btn btn-ghost"
-          onClick={back}
-          disabled={pending || (step === 0 && phase === "questions")}
-          style={{ visibility: step === 0 ? "hidden" : "visible" }}
-        >
-          <ArrowLeft size={15} />
-          Back
-        </button>
-        <div className="flex items-center gap-2">
+        <div className="flex-1 flex gap-3">
           {def.skippable && (
-            <button className="btn btn-ghost" onClick={skip} disabled={pending}>
-              Skip
+            <button className="flex-1 h-14 rounded-2xl bg-white/5 text-brand-silver/50 font-bold hover:text-brand-silver" onClick={() => setStep(step + 1)}>
+              O'tkazib yuborish
             </button>
           )}
-          <button className="btn btn-primary" onClick={next} disabled={pending}>
-            {pending ? <Spinner size={15} /> : null}
-            {isLast ? "Finish setup" : "Continue"}
-            {!pending && <ArrowRight size={15} />}
+          <button className="flex-[2] btn-primary h-14 text-lg font-bold" onClick={next} disabled={pending}>
+            {pending ? <Spinner size={20} /> : (isLast ? "Tamomlash" : "Keyingisi")}
+            {!pending && <ArrowRight size={20} className="ml-2" />}
           </button>
         </div>
       </div>

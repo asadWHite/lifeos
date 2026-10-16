@@ -12,6 +12,7 @@ function defaultPrefs(profileId: string): PreferencesRow {
     weekendVaries: null, planningStyle: null, difficulties: [],
     phoneBeforeBed: null, sleepTargetMinutes: null, hiddenSections: [],
     theme: "system", onboardingStep: 0, updatedAt: new Date(0),
+    reminderEnabled: true, language: "uz"
   };
 }
 

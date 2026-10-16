@@ -4,24 +4,23 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ChartColumn,
-  HeartPulse,
-  House,
-  Plus,
-  Settings2,
-  Sparkles,
+  Home,
+  ClipboardList,
   Target,
+  Zap,
+  Moon,
+  Settings,
+  Plus
 } from "lucide-react";
-import { Logo, Wordmark } from "@/components/Logo";
-import { TaskSheet, type GoalOption } from "@/components/tasks/TaskSheet";
+import { motion } from "framer-motion";
+import { Logo } from "@/components/Branding";
 
 const NAV = [
-  { href: "/home", label: "Home", icon: House },
-  { href: "/brain", label: "Brain", icon: Sparkles },
-  { href: "/health", label: "Health", icon: HeartPulse },
-  { href: "/goals", label: "Goals", icon: Target },
-  { href: "/progress", label: "Progress", icon: ChartColumn },
-  { href: "/settings", label: "Settings", icon: Settings2 },
+  { href: "/home", label: "Dashboard", icon: Home },
+  { href: "/plan", label: "Reja", icon: ClipboardList },
+  { href: "/goals", label: "Maqsad", icon: Target },
+  { href: "/habits", label: "Odatlar", icon: Zap },
+  { href: "/sleep", label: "Uyqu", icon: Moon },
 ];
 
 export function AppShell({
@@ -30,94 +29,61 @@ export function AppShell({
   children,
 }: {
   name: string;
-  goals: GoalOption[];
+  goals: any[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const [quickOpen, setQuickOpen] = useState(false);
-  const firstName = name.split(" ")[0];
 
   return (
-    <div className="min-h-dvh bg-bg">
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface md:flex">
-        <div className="flex items-center gap-2.5 px-5 pb-5 pt-6">
-          <Logo size={30} />
-          <Wordmark />
+    <div className="min-h-screen flex flex-col bg-bg text-ink pb-24">
+      {/* Top Header */}
+      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-bg/80 backdrop-blur-xl border-b border-border tma-safe-top">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.2em]">LifeOS</span>
+          <h1 className="text-lg font-bold text-ink truncate max-w-[200px]">{name}</h1>
         </div>
-        <nav className="flex-1 space-y-1 px-3" aria-label="Primary">
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href} className="nav-item" data-active={active}>
-                <item.icon size={18} strokeWidth={active ? 2.1 : 1.8} aria-hidden />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="px-3 pb-6">
-          <button className="btn btn-primary w-full" onClick={() => setQuickOpen(true)}>
-            <Plus size={16} />
-            New task
-          </button>
-          <p className="mt-4 truncate px-2 text-[12.5px] font-medium text-ink3">
-            {firstName}&rsquo;s space
-          </p>
-        </div>
-      </aside>
-
-      {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/95 px-4 py-3 backdrop-blur-sm md:hidden">
-        <Link href="/home" className="flex items-center gap-2" aria-label="LIFEOS home">
-          <Logo size={26} />
-          <Wordmark size={15} />
+        <Link href="/settings" className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center text-ink-muted hover:text-ink transition-colors">
+          <Settings size={20} />
         </Link>
-        <span className="text-[12.5px] font-medium text-ink3">{firstName}</span>
       </header>
 
-      {/* Content */}
-      <div className="md:pl-60">
-        <main className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-6 sm:px-6 md:pb-14 md:pt-9 lg:px-10">
-          {children}
-        </main>
-      </div>
+      {/* Main Content */}
+      <main className="flex-1 overflow-x-hidden">
+        {children}
+      </main>
 
-      {/* Mobile quick-add FAB */}
-      <button
-        className="fixed bottom-[76px] right-4 z-40 flex h-13 w-13 items-center justify-center rounded-full bg-accent text-white shadow-raised transition-transform active:scale-95 md:hidden"
-        style={{ height: 52, width: 52 }}
-        onClick={() => setQuickOpen(true)}
-        aria-label="Create a new task"
-      >
-        <Plus size={22} />
-      </button>
-
-      {/* Mobile bottom nav */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
-        aria-label="Primary"
-      >
-        <div className="grid grid-cols-6">
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-2xl border-t border-border px-2 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="max-w-lg mx-auto grid grid-cols-5 gap-1">
           {NAV.map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors ${
-                  active ? "text-accent-ink" : "text-ink3"
-                }`}
+                className="relative flex flex-col items-center justify-center py-2"
               >
-                <item.icon size={20} strokeWidth={active ? 2.1 : 1.8} aria-hidden />
-                {item.label}
+                <div className={`relative z-10 p-2 rounded-xl transition-all duration-300 ${active ? 'text-brand-light' : 'text-ink-muted hover:text-ink'}`}>
+                  {active && (
+                    <motion.div 
+                      layoutId="nav-bg"
+                      className="absolute inset-0 bg-brand-dark rounded-xl -z-10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <item.icon size={22} strokeWidth={active ? 2.5 : 2} />
+                </div>
+                <span className={`text-[10px] mt-1 font-bold tracking-tight transition-colors ${active ? 'text-brand-dark' : 'text-ink-muted'}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </div>
       </nav>
 
-      <TaskSheet open={quickOpen} onClose={() => setQuickOpen(false)} goals={goals} />
+      {/* Fast Action Button - could be added if needed */}
     </div>
   );
 }

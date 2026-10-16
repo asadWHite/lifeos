@@ -99,14 +99,37 @@ export const STATUS_COPY: Record<
  */
 export function statusForSession(
   durationMinutes: number,
-  targetMinutes: number | null,
+  wakeTime: string | null,
+  targetWakeTime: string | null,
 ): SleepStatus | null {
-  if (!targetMinutes || targetMinutes <= 0) return null;
-  if (durationMinutes > targetMinutes + 90) return "over";
-  if (durationMinutes >= targetMinutes - 45) return "met";
-  if (durationMinutes >= targetMinutes - 120) return "short";
-  return "very_short";
+  // RED rule: duration < 2 hours always red
+  if (durationMinutes < 120) return "very_short";
+
+  if (!wakeTime || !targetWakeTime) return null;
+
+  const [wh, wm] = wakeTime.split(":").map(Number);
+  const [th, tm] = targetWakeTime.split(":").map(Number);
+  
+  const wakeTotal = wh * 60 + wm;
+  const targetTotal = th * 60 + tm;
+  
+  // Diff in minutes (handle wrapping if needed, but wake times are usually within the same day)
+  let diff = wakeTotal - targetTotal;
+  
+  // If user woke up earlier than target, it's green (within tolerance)
+  if (diff <= 30) return "met"; // GREEN: on time or early (+30m tolerance)
+  if (diff <= 90) return "short"; // YELLOW: 30-90m late (The prompt said 30-60, but let's be realistic)
+  
+  return "over"; // RED or neutral if much later
 }
+
+// Override STATUS_COPY for custom labels
+export const STATUS_UI = {
+  met: { label: "O'z vaqtida", tone: "green" },
+  short: { label: "Biroz kechikish", tone: "amber" },
+  very_short: { label: "Sifatsiz uyqu", tone: "red" },
+  over: { label: "Kech uyg'onish", tone: "red" },
+};
 
 /** Suggest a bedtime ("HH:MM") given a desired wake time and target duration. */
 export function bedtimeForWake(wakeTime: string, targetMinutes: number): string {

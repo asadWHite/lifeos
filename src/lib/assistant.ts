@@ -12,7 +12,7 @@
  */
 
 import { formatDuration } from "./time";
-import { statusForSession, STATUS_COPY } from "./sleep";
+import { statusForSession, STATUS_UI } from "./sleep";
 
 export type AssistantContext = {
   name: string;
@@ -153,11 +153,14 @@ export function ruleBasedReply(rawMessage: string, ctx: AssistantContext): Assis
         : `Tasks: ${done} of ${total} completed today.`,
     );
     if (ctx.lastSleepMinutes != null) {
-      const status = statusForSession(ctx.lastSleepMinutes, ctx.sleepTargetMinutes);
+      // In the context of assistant, we might not have the actual wake time string easily accessible 
+      // but we can pass null for now to get duration-based status if needed, 
+      // or we assume it's just general durations.
+      const status = statusForSession(ctx.lastSleepMinutes, null, null);
       parts.push(
         `Sleep last night: ${formatDuration(ctx.lastSleepMinutes)}${
           ctx.sleepTargetMinutes ? ` (target ${formatDuration(ctx.sleepTargetMinutes)})` : ""
-        }${status ? ` — ${STATUS_COPY[status].label.toLowerCase()}` : ""}.`,
+        }${status ? ` — ${(STATUS_UI as any)[status].label.toLowerCase()}` : ""}.`,
       );
     }
     if (ctx.goals.length > 0) {

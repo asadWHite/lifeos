@@ -139,8 +139,11 @@ export default function ProgressPage() {
                 <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
                   {week.map((iso) => {
                     const s = sessions.find((x:any) => dayPartsInTz(tz, new Date(x.startedAt)).iso === iso);
-                    const status = s?.durationMinutes != null ? statusForSession(s.durationMinutes, target) : null;
-                    const tone = s?.durationMinutes == null ? "bg-line" : status == null ? "bg-line-strong" : STATUS_COPY[status].tone === "green" ? "bg-accent" : STATUS_COPY[status].tone === "amber" ? "bg-amber" : "bg-red";
+                    const wakeTime = s?.endedAt ? new Date(s.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+                    const status = s?.durationMinutes != null ? statusForSession(s.durationMinutes, wakeTime, prefs.wakeTime) : null;
+                    const tone = s?.durationMinutes == null ? "bg-line" : 
+                                 status === "met" ? "bg-emerald-500" :
+                                 status === "short" ? "bg-amber-500" : "bg-red-500";
                     const max = Math.max(target ?? 480, ...[0, ...sessions.map((x:any) => x.durationMinutes ?? 0)]) * 1.1;
                     const h = s?.durationMinutes != null ? Math.max(8, (s.durationMinutes / max) * 96) : 4;
                     return (

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/client/storage";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import type { OnboardingValues } from "@/lib/onboarding";
-import { Logo, Wordmark } from "@/components/Logo";
+import { Logo } from "@/components/Branding";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -43,6 +43,8 @@ export default function OnboardingPage() {
     planningStyle: prefs.planningStyle,
     difficulties: prefs.difficulties ?? [],
     phoneBeforeBed: prefs.phoneBeforeBed,
+    reminderEnabled: prefs.reminderEnabled ?? true,
+    theme: (prefs.theme as any) || 'system',
   };
   const initialStep = Math.min(Math.max(prefs.onboardingStep ?? 0, 0), 7);
 
@@ -50,8 +52,8 @@ export default function OnboardingPage() {
     <div className="flex min-h-dvh flex-col bg-bg">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 pt-6">
         <div className="flex items-center gap-2.5">
-          <Logo size={26} />
-          <Wordmark size={15} />
+          <Logo size={32} />
+          <span className="text-lg font-black text-brand-dark tracking-tighter uppercase italic">LifeOS</span>
         </div>
         <span className="text-[12.5px] font-medium text-ink3">Setting up for {profile.name.split(" ")[0]}</span>
       </header>

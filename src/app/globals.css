@@ -1,405 +1,117 @@
 @import "tailwindcss";
 
-/*
- * LIFEOS design system — calm, warm, Apple-inspired minimalism.
- * Tokens are runtime CSS variables so the dark theme re-maps them without
- * regenerating utilities.
- */
-
 @theme inline {
+  --color-brand-dark: #2B3153;
+  --color-brand-smoky: #505870;
+  --color-brand-silver: #86939B;
+  --color-brand-light: #EFEFEF;
+
   --color-bg: var(--c-bg);
   --color-surface: var(--c-surface);
-  --color-sunken: var(--c-sunken);
   --color-ink: var(--c-ink);
-  --color-ink2: var(--c-ink2);
-  --color-ink3: var(--c-ink3);
-  --color-line: var(--c-line);
-  --color-line-strong: var(--c-line-strong);
-  --color-accent: var(--c-accent);
-  --color-accent-hover: var(--c-accent-hover);
-  --color-accent-ink: var(--c-accent-ink);
-  --color-accent-soft: var(--c-accent-soft);
-  --color-accent-line: var(--c-accent-line);
-  --color-amber: var(--c-amber);
-  --color-amber-soft: var(--c-amber-soft);
-  --color-amber-line: var(--c-amber-line);
-  --color-red: var(--c-red);
-  --color-red-soft: var(--c-red-soft);
-  --color-red-line: var(--c-red-line);
-  --color-info: var(--c-info);
-  --color-info-soft: var(--c-info-soft);
-
-  --shadow-card: 0 1px 2px rgb(23 36 43 / 0.04), 0 1px 1px rgb(23 36 43 / 0.03);
-  --shadow-pop: 0 16px 48px -12px rgb(23 36 43 / 0.22), 0 4px 12px -4px rgb(23 36 43 / 0.08);
-  --shadow-raised: 0 2px 6px -1px rgb(23 36 43 / 0.08), 0 1px 2px rgb(23 36 43 / 0.05);
-
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
-
-  --radius-card: 16px;
+  --color-ink-muted: var(--c-ink-muted);
+  --color-border: var(--c-border);
+  
+  --shadow-metallic: 0 4px 20px -2px rgba(43, 49, 83, 0.3);
+  --radius-xl: 20px;
 }
 
 :root {
-  --c-bg: #f5f4ef;
-  --c-surface: #ffffff;
-  --c-sunken: #ecebe4;
-  --c-ink: #17242b;
-  --c-ink2: #5d6d76;
-  --c-ink3: #97a4ab;
-  --c-line: #e3e1d8;
-  --c-line-strong: #cdcbbe;
-  --c-accent: #2f7a5b;
-  --c-accent-hover: #27674d;
-  --c-accent-ink: #1f5c42;
-  --c-accent-soft: #e3f0e8;
-  --c-accent-line: #bfdbcc;
-  --c-amber: #a4640a;
-  --c-amber-soft: #f7edd8;
-  --c-amber-line: #e9d5ac;
-  --c-red: #b8402c;
-  --c-red-soft: #f8e6e1;
-  --c-red-line: #eec7bd;
-  --c-info: #31689e;
-  --c-info-soft: #e7eff7;
-  --selection: rgb(47 122 91 / 0.18);
+  --c-bg: #EFEFEF;
+  --c-surface: #FFFFFF;
+  --c-ink: #2B3153;
+  --c-ink-muted: #505870;
+  --c-border: #86939B44;
+
+  --grad-metallic: linear-gradient(135deg, #2B3153 0%, #505870 55%, #86939B 100%);
+  --grad-silver: linear-gradient(135deg, #86939B 0%, #EFEFEF 50%, #505870 100%);
 }
 
 [data-theme="dark"] {
-  --c-bg: #101513;
-  --c-surface: #171d1a;
-  --c-sunken: #0b0f0d;
-  --c-ink: #e9eeeb;
-  --c-ink2: #9caaa2;
-  --c-ink3: #66736a;
-  --c-line: #252d28;
-  --c-line-strong: #36403a;
-  --c-accent: #58b28c;
-  --c-accent-hover: #69c19d;
-  --c-accent-ink: #9ad9be;
-  --c-accent-soft: #1b2b23;
-  --c-accent-line: #2c4739;
-  --c-amber: #dfa041;
-  --c-amber-soft: #2b2214;
-  --c-amber-line: #4d3d1d;
-  --c-red: #e07c62;
-  --c-red-soft: #2d1d18;
-  --c-red-line: #533428;
-  --c-info: #7aa9d6;
-  --c-info-soft: #16222c;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35);
-  --shadow-pop: 0 20px 56px -12px rgb(0 0 0 / 0.6);
-  --shadow-raised: 0 2px 8px -1px rgb(0 0 0 / 0.4);
-  --selection: rgb(88 178 140 / 0.25);
-}
-
-html {
-  -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
+  --c-bg: #1A1D2D;
+  --c-surface: #2B3153;
+  --c-ink: #EFEFEF;
+  --c-ink-muted: #86939B;
+  --c-border: #50587088;
 }
 
 body {
   background: var(--c-bg);
   color: var(--c-ink);
-  font-family: var(--font-sans);
-  letter-spacing: -0.011em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-::selection {
-  background: var(--selection);
-}
-
-:focus-visible {
-  outline: 2px solid var(--c-accent);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+  overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100svh;
 }
 
 @layer components {
-  .card {
+  .metallic-card {
     background: var(--c-surface);
-    border: 1px solid var(--c-line);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-card);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    padding: 10px 16px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition:
-      background-color 140ms ease,
-      border-color 140ms ease,
-      color 140ms ease,
-      transform 100ms ease;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .btn:active {
-    transform: scale(0.98);
-  }
-  .btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    transform: none;
-  }
-  .btn-sm {
-    padding: 7px 12px;
-    font-size: 13px;
-    border-radius: 10px;
-  }
-  .btn-lg {
-    padding: 13px 22px;
-    font-size: 15px;
-    border-radius: 13px;
+    border: 1px solid var(--c-border);
+    box-shadow: var(--shadow-metallic);
+    border-radius: var(--radius-xl);
   }
 
   .btn-primary {
-    background: var(--c-accent);
-    color: #f6fbf8;
-  }
-  .btn-primary:hover:not(:disabled) {
-    background: var(--c-accent-hover);
-  }
-
-  .btn-secondary {
-    background: var(--c-surface);
-    border-color: var(--c-line-strong);
-    color: var(--c-ink);
-    box-shadow: var(--shadow-card);
-  }
-  .btn-secondary:hover:not(:disabled) {
-    border-color: var(--c-ink3);
-  }
-
-  .btn-ghost {
-    color: var(--c-ink2);
-  }
-  .btn-ghost:hover:not(:disabled) {
-    background: var(--c-sunken);
-    color: var(--c-ink);
-  }
-
-  .btn-danger {
-    color: var(--c-red);
-  }
-  .btn-danger:hover:not(:disabled) {
-    background: var(--c-red-soft);
-  }
-
-  .input {
-    width: 100%;
-    background: var(--c-surface);
-    border: 1px solid var(--c-line-strong);
+    background: var(--grad-metallic);
+    color: #FFFFFF;
+    padding: 12px 24px;
     border-radius: 12px;
-    padding: 10px 14px;
-    font-size: 15px;
-    color: var(--c-ink);
-    transition:
-      border-color 140ms ease,
-      box-shadow 140ms ease;
-  }
-  .input::placeholder {
-    color: var(--c-ink3);
-  }
-  .input:focus {
-    outline: none;
-    border-color: var(--c-accent);
-    box-shadow: 0 0 0 3px var(--c-accent-soft);
-  }
-
-  .label {
-    display: block;
-    font-size: 13px;
     font-weight: 600;
-    color: var(--c-ink2);
-    margin-bottom: 6px;
-    letter-spacing: -0.005em;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--c-line-strong);
-    background: var(--c-surface);
-    font-size: 13.5px;
-    font-weight: 550;
-    color: var(--c-ink);
-    cursor: pointer;
-    transition:
-      background-color 120ms ease,
-      border-color 120ms ease,
-      color 120ms ease;
-    user-select: none;
-  }
-  .chip:hover {
-    border-color: var(--c-ink3);
-  }
-  .chip[data-selected="true"] {
-    background: var(--c-accent-soft);
-    border-color: var(--c-accent-line);
-    color: var(--c-accent-ink);
-  }
-
-  .icon-btn {
+    transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    color: var(--c-ink3);
-    cursor: pointer;
-    transition:
-      background-color 120ms ease,
-      color 120ms ease;
-  }
-  .icon-btn:hover {
-    background: var(--c-sunken);
-    color: var(--c-ink);
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 9px 12px;
-    border-radius: 11px;
-    font-size: 14px;
-    font-weight: 550;
-    color: var(--c-ink2);
-    transition:
-      background-color 130ms ease,
-      color 130ms ease;
-  }
-  .nav-item:hover {
-    background: var(--c-sunken);
-    color: var(--c-ink);
-  }
-  .nav-item[data-active="true"] {
-    background: var(--c-accent-soft);
-    color: var(--c-accent-ink);
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-  }
-
-  .section-title {
-    font-size: 17px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    color: var(--c-ink);
-  }
-
-  .caption {
-    font-size: 12.5px;
-    color: var(--c-ink2);
-    line-height: 1.5;
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--c-line);
     border: none;
+    cursor: pointer;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }
 
-/* Page entrance — subtle, respects reduced-motion via global rule above */
-@keyframes lifeos-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Telegram Mini App Fixes */
+input, select, textarea {
+  font-size: 16px !important; /* Prevents auto-zoom on iOS */
 }
 
-.animate-rise {
-  animation: lifeos-rise 420ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+.tma-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-@keyframes lifeos-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.tma-safe-top {
+  padding-top: env(safe-area-inset-top);
 }
 
-.animate-fade {
-  animation: lifeos-fade 280ms ease both;
+/* Animations */
+@keyframes metallic-sweep {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(200%) rotate(45deg); }
 }
 
-@keyframes lifeos-pop {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.metallic-sweep-effect {
+  position: relative;
+  overflow: hidden;
 }
 
-.animate-pop {
-  animation: lifeos-pop 320ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
-}
-
-/* Spin for loading indicators */
-@keyframes lifeos-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.animate-spin-slow {
-  animation: lifeos-spin 800ms linear infinite;
-}
-
-/* Thin, unobtrusive scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--c-line-strong) transparent;
-}
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-thumb {
-  background: var(--c-line-strong);
-  border-radius: 8px;
+.metallic-sweep-effect::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 50%;
+  height: 200%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(45deg);
+  animation: metallic-sweep 3s infinite;
 }

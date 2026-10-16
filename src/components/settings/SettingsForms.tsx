@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, LogOut, RefreshCcw, Trash2 } from "lucide-react";
+import { Check, LogOut, RefreshCcw, Trash2, Sun, Moon, Laptop } from "lucide-react";
 import { Storage } from "@/lib/client/storage";
 import { FieldError, Spinner, Toggle } from "@/components/ui";
 import { PHONE_USE, PLANNING_STYLES } from "@/lib/onboarding";
@@ -26,8 +26,8 @@ function useSaveFlash() {
 export function Saved({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-ink animate-fade">
-      <Check size={13} /> Saved
+    <span className="inline-flex items-center gap-1 text-[12.5px] font-bold text-emerald-500 animate-fade">
+      <Check size={13} strokeWidth={3} /> Saqlandi
     </span>
   );
 }
@@ -48,40 +48,35 @@ export function ProfileForm({ name, timezone }: { name: string; timezone: string
   const [pending, start] = useTransition();
 
   function save() {
-    if (!n.trim()) {
-      setError("Your name can't be empty.");
-      return;
-    }
+    if (!n.trim()) { setError("Ismingiz bo'sh bo'lishi mumkin emas."); return; }
     start(() => {
       const pid = Storage.getCurrentProfileId();
       if (!pid) return;
       const p = Storage.getProfile(pid);
       if (p) Storage.saveProfile({ ...p, name: n.trim(), timezone: tz });
       setError(""); bump();
-      window.location.reload();
     });
   }
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="set-name">Name</label>
-          <input id="set-name" className="input" value={n} onChange={(e) => setN(e.target.value)} maxLength={40} />
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Ism</label>
+          <input className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none focus:border-brand-silver" value={n} onChange={(e) => setN(e.target.value)} maxLength={40} />
         </div>
-        <div>
-          <label className="label" htmlFor="set-tz">Timezone</label>
-          <select id="set-tz" className="input" value={tz} onChange={(e) => setTz(e.target.value)}>
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Vaqt mintaqasi</label>
+          <select className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none" value={tz} onChange={(e) => setTz(e.target.value)}>
             {zones.map((z) => (
               <option key={z} value={z}>{z.replace(/_/g, " ")}</option>
             ))}
           </select>
-          <p className="mt-1.5 text-[11.5px] text-ink3">Used for “today”, greetings, and sleep nights.</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
-          {pending ? <Spinner size={13} /> : "Save profile"}
+      <div className="flex items-center gap-3 pt-2">
+        <button className="px-4 py-2 bg-brand-dark text-white rounded-xl text-xs font-bold shadow-sm" onClick={save} disabled={pending}>
+          {pending ? <Spinner size={13} /> : "Yangilash"}
         </button>
         <Saved show={flash} />
       </div>
@@ -120,11 +115,10 @@ export function SleepForm({
           sleepTargetMinutes: Number(target) || null,
           wakeTime: wake || null,
           bedtime: bed || null,
-          phoneBeforeBed: (phone || null) as "rarely" | "sometimes" | "often" | "prefer_not" | null,
+          phoneBeforeBed: (phone || null) as any,
         });
       }
       setError(""); bump();
-      window.location.reload();
     });
   }
 
@@ -136,131 +130,33 @@ export function SleepForm({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="label" htmlFor="set-target">Sleep target</label>
-          <select id="set-target" className="input" value={target} onChange={(e) => setTarget(e.target.value)}>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+    <div className="space-y-6">
+      <div className="grid gap-4 grid-cols-2">
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Uyg'onish</label>
+          <input type="time" className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none" value={wake} onChange={(e) => setWake(e.target.value)} />
         </div>
-        <div>
-          <label className="label" htmlFor="set-wake">Desired wake-up</label>
-          <input id="set-wake" type="time" className="input" value={wake} onChange={(e) => setWake(e.target.value)} />
-        </div>
-        <div>
-          <label className="label" htmlFor="set-bed">Desired bedtime</label>
-          <input id="set-bed" type="time" className="input" value={bed} onChange={(e) => setBed(e.target.value)} />
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Uxshash</label>
+          <input type="time" className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none" value={bed} onChange={(e) => setBed(e.target.value)} />
         </div>
       </div>
-      <div>
-        <label className="label" htmlFor="set-phone">Phone use before sleep</label>
-        <select id="set-phone" className="input max-w-60" value={phone} onChange={(e) => setPhone(e.target.value)}>
-          <option value="">Not set</option>
-          {PHONE_USE.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
+      
+      <div className="space-y-1">
+        <label className="text-[10px] font-black text-ink-muted uppercase tracking-widest px-1">Maqsad (soat)</label>
+        <select className="w-full bg-bg border border-border rounded-xl p-3 text-sm focus:outline-none" value={target} onChange={(e) => setTarget(e.target.value)}>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink3">
-          If you chose “often”, aim to begin your wind-down about 30 minutes before your desired
-          bedtime. LIFEOS can&rsquo;t measure real screen time in this version.
-        </p>
       </div>
-      <div className="flex items-center gap-3">
-        <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
-          {pending ? <Spinner size={13} /> : "Save sleep settings"}
+
+      <div className="flex items-center gap-3 pt-2">
+        <button className="px-4 py-2 bg-brand-dark text-white rounded-xl text-xs font-bold" onClick={save} disabled={pending}>
+          {pending ? <Spinner size={13} /> : "Saqlash"}
         </button>
         <Saved show={flash} />
       </div>
-      <FieldError>{error}</FieldError>
-    </div>
-  );
-}
-
-const HIDABLE = [
-  { id: "sleep", label: "Sleep card" },
-  { id: "goals", label: "Goals card" },
-  { id: "brain", label: "Assistant card" },
-  { id: "upcoming", label: "Coming up" },
-  { id: "checkin", label: "Energy check-in" },
-];
-
-export function PlanningForm({
-  planningStyle,
-  hidden,
-}: {
-  planningStyle: string | null;
-  hidden: string[];
-}) {
-  const [style, setStyle] = useState(planningStyle ?? "together");
-  const [hiddenSet, setHiddenSet] = useState<Set<string>>(new Set(hidden));
-  const { flash, bump } = useSaveFlash();
-  const [, start] = useTransition();
-
-  function pickStyle(id: string) {
-    setStyle(id);
-    start(() => {
-      const pid = Storage.getCurrentProfileId();
-      if (pid) {
-        const p = Storage.getPrefs(pid);
-        Storage.savePrefs({ ...p, planningStyle: id });
-        bump();
-      }
-    });
-  }
-
-  function toggleSection(id: string, show: boolean) {
-    const next = new Set(hiddenSet);
-    if (show) next.delete(id);
-    else next.add(id);
-    setHiddenSet(next);
-    start(() => {
-      const pid = Storage.getCurrentProfileId();
-      if (pid) {
-        const p = Storage.getPrefs(pid);
-        Storage.savePrefs({ ...p, hiddenSections: [...next] });
-        bump();
-      }
-    });
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <span className="label">How much planning help do you want?</span>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Planning style">
-          {PLANNING_STYLES.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className="chip"
-              data-selected={style === o.id}
-              onClick={() => pickStyle(o.id)}
-              title={o.description}
-            >
-              {o.label.replace("Let LIFEOS suggest a ", "Full ")}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <span className="label">Home sections</span>
-        <div className="space-y-3">
-          {HIDABLE.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3">
-              <span className="text-[14px] text-ink">{s.label}</span>
-              <Toggle
-                label={`Show ${s.label}`}
-                checked={!hiddenSet.has(s.id)}
-                onChange={(show) => toggleSection(s.id, show)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-      <Saved show={flash} />
     </div>
   );
 }
@@ -271,113 +167,44 @@ export function AppearanceForm({ theme }: { theme: string }) {
 
   function apply(next: string) {
     setValue(next);
-    try {
-      localStorage.setItem("lifeos-theme", next);
-      const dark = next === "dark" || (next === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      if (dark) document.documentElement.setAttribute("data-theme", "dark");
-      else document.documentElement.removeAttribute("data-theme");
-    } catch {
-      /* private mode */
-    }
     start(() => {
       const pid = Storage.getCurrentProfileId();
       if (pid) {
         const p = Storage.getPrefs(pid);
         Storage.savePrefs({ ...p, theme: next });
       }
+      try {
+        if (next === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        else if (next === "light") document.documentElement.removeAttribute("data-theme");
+        else {
+          const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.setAttribute("data-theme", "dark");
+          else document.documentElement.removeAttribute("data-theme");
+        }
+      } catch {}
     });
   }
 
   return (
-    <div className="flex gap-2" role="radiogroup" aria-label="Theme">
-      {(["light", "dark", "system"] as const).map((t) => (
-        <button key={t} type="button" className="chip capitalize" data-selected={value === t} onClick={() => apply(t)}>
-          {t}
+    <div className="flex gap-2">
+      {[
+        { id: 'light', label: 'Yorug\'', icon: Sun },
+        { id: 'dark', label: 'To\'q', icon: Moon },
+        { id: 'system', label: 'Tizim', icon: Laptop }
+      ].map((t) => (
+        <button 
+          key={t.id} 
+          onClick={() => apply(t.id)}
+          className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
+            value === t.id 
+            ? 'bg-brand-dark border-brand-dark text-brand-light' 
+            : 'bg-bg border-border text-ink-muted'
+          }`}
+        >
+          <t.icon size={18} />
+          <span className="text-[10px] font-bold uppercase tracking-tighter">{t.label}</span>
         </button>
       ))}
-    </div>
-  );
-}
-
-export function RetakeButton() {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  return (
-    <button
-      className="btn btn-secondary btn-sm"
-      onClick={() =>
-        start(() => {
-          const pid = Storage.getCurrentProfileId();
-          if (pid) {
-            const profile = Storage.getProfile(pid);
-            if (profile) Storage.saveProfile({ ...profile, onboardingCompleted: false });
-            const prefs = Storage.getPrefs(pid);
-            if (prefs) Storage.savePrefs({ ...prefs, onboardingStep: 0 });
-          }
-          router.push("/onboarding");
-        })
-      }
-      disabled={pending}
-    >
-      {pending ? <Spinner size={13} /> : <RefreshCcw size={13} />}
-      Retake personalization quiz
-    </button>
-  );
-}
-
-export function AccountActions() {
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState("");
-  const [pending, start] = useTransition();
-
-  const router = useRouter();
-  function destroy() {
-    start(() => {
-      const pid = Storage.getCurrentProfileId();
-      if (pid) Storage.deleteProfile(pid);
-      Storage.setCurrentProfileId(null);
-      router.push("/welcome");
-    });
-  }
-
-  function signout() {
-    Storage.setCurrentProfileId(null);
-    router.push("/welcome");
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <button className="btn btn-secondary btn-sm" onClick={signout}>
-          <LogOut size={14} />
-          Sign out of this profile
-        </button>
-      </div>
-      <div className="rounded-[14px] border border-red-line bg-red-soft/50 p-4">
-        <p className="text-[13.5px] font-semibold text-ink">Delete this profile</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-ink2">
-          Permanently removes your profile and everything attached to it: tasks, goals,
-          sleep sessions, check-ins, preferences and assistant history on this deployment.
-        </p>
-        {confirming ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 animate-fade">
-            <span className="text-[12.5px] font-semibold text-red">This can&rsquo;t be undone.</span>
-            <button className="btn btn-sm bg-red text-white" onClick={destroy} disabled={pending}>
-              {pending ? <Spinner size={13} /> : <Trash2 size={13} />}
-              Delete everything
-            </button>
-            <button className="btn btn-sm btn-ghost" onClick={() => setConfirming(false)} disabled={pending}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button className="btn btn-sm btn-danger mt-3 border !border-red-line bg-surface" onClick={() => setConfirming(true)}>
-            <Trash2 size={13} />
-            Delete profile…
-          </button>
-        )}
-        {error && <FieldError>{error}</FieldError>}
-      </div>
     </div>
   );
 }
