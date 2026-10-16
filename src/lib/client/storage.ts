@@ -101,17 +101,37 @@ export const Storage = {
   
   // Current Session
   getCurrentProfileId(): string | null {
-    // Read from cookie for simple sync
-    if (typeof document === "undefined") return null;
-    const match = document.cookie.match(new RegExp('(^| )lifeos_profile=([^;]+)'));
-    return match ? match[2] : null;
+    if (typeof window === "undefined") return null;
+
+    // Prefer localStorage: more reliable inside Telegram WebView / mobile browsers.
+    const local = window.localStorage.getItem("lifeos_current_profile");
+    if (local) return local;
+
+    // Fallback to cookie for compatibility.
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(new RegExp('(^| )lifeos_profile=([^;]+)'));
+      if (match?.[2]) {
+        // Self-heal: mirror cookie into localStorage.
+        window.localStorage.setItem("lifeos_current_profile", match[2]);
+        return match[2];
+      }
+    }
+
+    return null;
   },
   setCurrentProfileId(id: string | null) {
-    if (typeof document === "undefined") return;
+    if (typeof window === "undefined") return;
+
     if (id) {
-      document.cookie = `lifeos_profile=${id}; path=/; max-age=31536000; SameSite=Lax`;
+      window.localStorage.setItem("lifeos_current_profile", id);
+      if (typeof document !== "undefined") {
+        document.cookie = `lifeos_profile=${id}; path=/; max-age=31536000; SameSite=Lax`;
+      }
     } else {
-      document.cookie = `lifeos_profile=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      window.localStorage.removeItem("lifeos_current_profile");
+      if (typeof document !== "undefined") {
+        document.cookie = `lifeos_profile=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
     }
   }
 };

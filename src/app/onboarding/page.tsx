@@ -46,7 +46,7 @@ export default function OnboardingPage() {
     reminderEnabled: prefs.reminderEnabled ?? true,
     theme: (prefs.theme as any) || 'system',
   };
-  const initialStep = Math.min(Math.max(prefs.onboardingStep ?? 0, 0), 7);
+  const initialStep = Math.min(Math.max(prefs.onboardingStep ?? 0, 0), 9);
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">

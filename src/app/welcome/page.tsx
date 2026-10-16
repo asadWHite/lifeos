@@ -30,7 +30,7 @@ export default function WelcomePage() {
     if (pid && existing.find(p => p.id === pid)) {
       const profile = existing.find(p => p.id === pid);
       if (profile?.onboardingCompleted) {
-        router.push("/home");
+        router.replace("/home");
       }
     }
   }, [router]);
@@ -51,7 +51,7 @@ export default function WelcomePage() {
     // @ts-ignore
     Storage.saveProfile(p);
     Storage.setCurrentProfileId(p.id);
-    router.push("/onboarding");
+    router.replace("/onboarding");
   };
 
   if (!mounted) return null;
