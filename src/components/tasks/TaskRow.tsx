@@ -1,141 +1,79 @@
 "use client";
-
 import { useState } from "react";
-import { Check, Pencil, Trash2, ChevronDown, ChevronUp, Clock, Flag } from "lucide-react";
-import { Storage, generateId, todayDate, fmtDuration, type TaskRow } from "@/lib/client/storage";
+import { Check, Pencil, Trash2, Flag } from "lucide-react";
+import { Storage, todayDate, type TaskRow } from "@/lib/client/storage";
 
-const PRIORITY_COLORS: Record<string, string> = {
-  high: "#C65B55",
-  normal: "#C8943E",
-  low: "#3F8065",
-};
-
-function relativeDate(dateStr: string | null, today: string): string {
-  if (!dateStr) return "";
-  if (dateStr === today) return "Bugun";
-  const diff = Math.round((new Date(dateStr).getTime() - new Date(today).getTime()) / 86400000);
-  if (diff === 1) return "Ertaga";
-  if (diff === -1) return "Kecha";
-  if (diff < -1) return `${-diff}k oldin`;
-  if (diff > 1) return `${diff}k keyin`;
-  return dateStr;
-}
-
-export function TaskRow({
-  task,
-  onChanged,
-  goalTitle,
-}: {
-  task: TaskRow;
-  onChanged: () => void;
-  goalTitle?: string;
+export function TaskRow({ task, onChanged, goalTitle }: {
+  task: TaskRow; onChanged: () => void; goalTitle?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const today = todayDate();
 
   function toggle() {
-    const now = new Date().toISOString();
-    Storage.saveTask({
-      ...task,
-      status: task.status === "done" ? "todo" : "done",
-      completedAt: task.status === "done" ? null : now,
-    });
+    const done = task.status !== "done";
+    Storage.saveTask({ ...task, status: done ? "done" : "todo", completedAt: done ? new Date().toISOString() : null });
+    if (done) Storage.checkAndUnlockAchievements(task.profileId);
     onChanged();
   }
-
   function saveEdit() {
     if (!editTitle.trim()) return;
     Storage.saveTask({ ...task, title: editTitle.trim() });
-    setEditing(false);
-    onChanged();
+    setEditing(false); onChanged();
   }
-
-  function remove() {
-    Storage.deleteTask(task.id);
-    onChanged();
-  }
+  function remove() { Storage.deleteTask(task.id); onChanged(); }
 
   const done = task.status === "done";
   const overdue = !done && task.dueDate && task.dueDate < today;
 
-  if (editing) {
-    return (
-      <div className="px-4 py-3 flex gap-2 items-center bg-[var(--c-surface2)] rounded-xl">
-        <input
-          autoFocus
-          className="input flex-1 py-2 text-sm"
-          value={editTitle}
-          onChange={e => setEditTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditing(false); }}
-        />
-        <button className="btn btn-sm btn-primary" onClick={saveEdit}>Saqlash</button>
-        <button className="btn btn-sm btn-ghost" onClick={() => setEditing(false)}>Bekor</button>
+  if (confirm) return (
+    <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span className="t-sm" style={{ color: "var(--error)" }}>O'chirilsinmi?</span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={remove} className="btn btn-sm" style={{ background: "var(--error)", color: "#fff" }}>O'chirish</button>
+        <button onClick={() => setConfirm(false)} className="btn btn-ghost btn-sm">Bekor</button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (confirmDelete) {
-    return (
-      <div className="px-4 py-3 flex gap-2 items-center justify-between">
-        <p className="text-small text-[var(--c-ink2)]">O'apos;chirilsinmi?</p>
-        <div className="flex gap-2">
-          <button className="btn btn-sm" onClick={remove} style={{ background: "#C65B55", color: "#fff" }}>O'apos;chirish</button>
-          <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(false)}>Bekor</button>
-        </div>
-      </div>
-    );
-  }
+  if (editing) return (
+    <div style={{ padding: "10px 16px", display: "flex", gap: 8, alignItems: "center" }}>
+      <input className="input flex-1" style={{ padding: "8px 12px" }} value={editTitle}
+        onChange={e => setEditTitle(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditing(false); }} autoFocus />
+      <button className="btn btn-primary btn-sm" onClick={saveEdit}>Saqla</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Bekor</button>
+    </div>
+  );
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 group rounded-xl transition-colors hover:bg-[var(--c-surface2)] ${done ? "opacity-50" : ""}`}>
-      {/* checkbox */}
-      <button
-        onClick={toggle}
-        aria-label={done ? "Bajarilmagan deb belgilash" : "Bajarildi deb belgilash"}
-        className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-          done ? "bg-[var(--c-ink)] border-[var(--c-ink)]" : "border-[var(--c-border)]"
-        }`}
-      >
-        {done && <Check size={11} strokeWidth={3} className="text-[var(--c-bg)]" />}
+    <div className="group" style={{
+      display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px",
+      borderRadius: 12, transition: "background 0.12s",
+      opacity: done ? 0.55 : 1,
+    }}>
+      <button onClick={toggle} aria-label={done ? "Bajarilmagan" : "Bajarildi"} style={{
+        width: 22, height: 22, borderRadius: "50%", border: `2px solid ${done ? "var(--success)" : overdue ? "var(--error)" : "var(--border)"}`,
+        background: done ? "var(--success)" : "transparent", flexShrink: 0, marginTop: 1,
+        display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+      }}>
+        {done && <Check size={12} strokeWidth={3} color="#fff" />}
       </button>
-
-      {/* content */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-body leading-snug ${done ? "line-through text-[var(--c-ink2)]" : ""}`}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: "0.9rem", fontWeight: 500, textDecoration: done ? "line-through" : "none", wordBreak: "break-word" }}>
+          {task.isPriority && !done && <Flag size={11} style={{ display: "inline", color: "var(--lamp-orange)", marginRight: 4 }} />}
           {task.title}
         </p>
-        <div className="flex flex-wrap gap-2 mt-1">
-          {task.dueDate && (
-            <span className={`text-label ${overdue ? "text-[#C65B55]" : "text-[var(--c-ink2)]"}`}>
-              {relativeDate(task.dueDate, today)}
-            </span>
-          )}
-          {task.durationMinutes && (
-            <span className="text-label text-[var(--c-ink2)] flex items-center gap-0.5">
-              <Clock size={10} /> {fmtDuration(task.durationMinutes)}
-            </span>
-          )}
-          {task.priority !== "normal" && (
-            <span className="text-label" style={{ color: PRIORITY_COLORS[task.priority] }}>
-              <Flag size={10} className="inline mr-0.5" />{task.priority === "high" ? "Muhim" : "Oddiy"}
-            </span>
-          )}
-          {goalTitle && (
-            <span className="text-label text-[var(--c-ink2)] opacity-70">→ {goalTitle}</span>
-          )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+          {task.dueDate && <span className="t-xs" style={{ color: overdue ? "var(--error)" : "var(--ink2)" }}>{task.dueDate}</span>}
+          {task.priority === "high" && !done && <span className="t-xs" style={{ color: "var(--error)" }}>Muhim</span>}
+          {goalTitle && <span className="t-xs" style={{ color: "var(--ink2)" }}>→ {goalTitle}</span>}
         </div>
       </div>
-
-      {/* actions */}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-        <button onClick={() => setEditing(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[var(--c-ink2)]">
-          <Pencil size={13} />
-        </button>
-        <button onClick={() => setConfirmDelete(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[#C65B55]">
-          <Trash2 size={13} />
-        </button>
+      <div style={{ display: "flex", gap: 4, opacity: 0, transition: "opacity 0.15s" }} className="group-hover-show">
+        <button onClick={() => setEditing(true)} className="btn-icon" style={{ width: 30, height: 30 }}><Pencil size={13} /></button>
+        <button onClick={() => setConfirm(true)} className="btn-icon" style={{ width: 30, height: 30, color: "var(--error)" }}><Trash2 size={13} /></button>
       </div>
     </div>
   );

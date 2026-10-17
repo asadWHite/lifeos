@@ -1,46 +1,38 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Sun, Moon, Target } from "lucide-react";
+import { ArrowRight, Moon, Target, Zap } from "lucide-react";
 import { Storage, generateId } from "@/lib/client/storage";
-import { Spinner } from "@/components/ui/index";
 
-export default function Welcome() {
+export default function WelcomePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [profiles, setProfiles] = useState<Array<{ id: string; name: string }>>([]);
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName]   = useState("");
+  const [error, setError]         = useState("");
+  const [profiles, setProfiles]   = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true);
-    // Try Telegram user
-    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
-      const u = (window as any).Telegram.WebApp.initDataUnsafe.user;
-      setName(u.first_name + (u.last_name ? ` ${u.last_name}` : ""));
-    }
     const pid = Storage.getCurrentProfileId();
-    const profs = Storage.getProfiles();
+    const all = Storage.getProfiles();
+    setProfiles(all.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })));
     if (pid) {
-      const p = profs.find(x => x.id === pid);
-      if (p?.onboardingCompleted) { router.replace("/today"); return; }
+      const p = all.find(x => x.id === pid);
+      if (p?.onboardingCompleted) router.replace("/today");
     }
-    setProfiles(profs.map(p => ({ id: p.id, name: p.name })));
   }, [router]);
 
   function create() {
-    const n = name.trim();
-    if (!n) { setError("Ismingizni kiriting"); return; }
-    setLoading(true);
+    if (!firstName.trim()) { setError("Ismingizni kiriting"); return; }
     const id = generateId();
-    Storage.saveProfile({ id, name: n, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", onboardingCompleted: false, createdAt: new Date().toISOString() });
+    Storage.saveProfile({ id, firstName: firstName.trim(), lastName: lastName.trim(), nickname: null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", onboardingCompleted: false, createdAt: new Date().toISOString() });
     Storage.setCurrentProfileId(id);
     router.replace("/onboarding");
   }
 
-  function open(id: string) {
+  function openProfile(id: string) {
     Storage.setCurrentProfileId(id);
     router.replace("/today");
   }
@@ -48,73 +40,65 @@ export default function Welcome() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-dvh flex flex-col" style={{ background: "linear-gradient(160deg, #151B23 0%, #202833 55%, #2B3440 100%)" }}>
-      {/* hero */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        {/* lamp icon */}
-        <div className="relative w-24 h-24 mx-auto mb-8">
-          <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,99,60,0.25) 0%, transparent 70%)" }} />
-          <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: "rgba(255,99,60,0.12)", border: "1px solid rgba(255,99,60,0.2)" }}>
-            <div style={{ fontSize: 42 }}>🕯️</div>
+    <div style={{ minHeight: "100dvh", background: "linear-gradient(160deg, #151B23 0%, #202833 50%, #1A2030 100%)", display: "flex", flexDirection: "column" }}>
+      {/* Hero */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
+        {/* Logo */}
+        <div style={{ marginBottom: 32, textAlign: "center" }}>
+          <div style={{ width: 72, height: 72, borderRadius: 24, background: "rgba(255,99,60,0.15)", border: "1px solid rgba(255,99,60,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <span style={{ fontSize: 36 }}>💡</span>
           </div>
+          <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: "#F2F2F2", letterSpacing: "-0.04em", margin: 0 }}>LifeOS</h1>
+          <p style={{ color: "#ADA996", marginTop: 8, fontSize: "1rem", lineHeight: 1.5, maxWidth: 280, textAlign: "center" }}>
+            Hayotingizni tartibga soling — maqsadlar, uyqu, vazifalar
+          </p>
         </div>
 
-        <h1 className="text-display text-[#F2F2F2] mb-4">LifeOS</h1>
-        <p className="text-body text-[#ADA996] max-w-xs leading-relaxed mb-12">
-          Maqsadlaringizni belgilang. Lamp ularni yoritadi. Hayotingizni tartibga soling.
-        </p>
-
-        <div className="grid grid-cols-3 gap-4 w-full max-w-sm mb-12">
+        {/* Features */}
+        <div style={{ display: "grid", gap: 12, marginBottom: 36, width: "100%", maxWidth: 320 }}>
           {[
-            { icon: Target, label: "Maqsadlar" },
-            { icon: Sun, label: "Rejalash" },
-            { icon: Moon, label: "Uyqu" },
+            { icon: Target, text: "Maqsadlar va lamp xotirlatgich" },
+            { icon: Moon,   text: "Uyqu nazorati va statistika" },
+            { icon: Zap,    text: "Odatlar va achievement'lar" },
           ].map(f => (
-            <div key={f.label} className="flex flex-col items-center gap-2 p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <f.icon size={22} style={{ color: "#FF633C" }} />
-              <span className="text-small text-[#ADA996]">{f.label}</span>
+            <div key={f.text} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14 }}>
+              <f.icon size={18} style={{ color: "#FF633C", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.875rem", color: "#ADA996" }}>{f.text}</span>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* form */}
-      <div className="px-6 pb-8 space-y-4 max-w-sm mx-auto w-full">
+        {/* Existing profiles */}
         {profiles.length > 0 && (
-          <div className="space-y-2 mb-2">
+          <div style={{ width: "100%", maxWidth: 320, marginBottom: 20 }}>
+            <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(173,169,150,0.5)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Mavjud profil</p>
             {profiles.map(p => (
-              <button key={p.id} onClick={() => open(p.id)} className="w-full flex items-center gap-3 p-4 rounded-2xl text-left hover:opacity-80 transition-opacity" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#F2F2F2] font-bold" style={{ background: "#FF633C" }}>
-                  {p.name[0]?.toUpperCase()}
+              <button key={p.id} onClick={() => openProfile(p.id)} style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, display: "flex", alignItems: "center", gap: 12, marginBottom: 8, cursor: "pointer" }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#FF633C", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#fff", fontSize: "0.9rem" }}>
+                  {p.firstName[0]?.toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <p className="text-[#F2F2F2] font-semibold">{p.name}</p>
-                  <p className="text-small text-[#ADA996]">Davom etish</p>
+                <div style={{ textAlign: "left" }}>
+                  <p style={{ color: "#F2F2F2", fontWeight: 600, fontSize: "0.9rem", margin: 0 }}>{p.firstName} {p.lastName}</p>
+                  <p style={{ color: "#ADA996", fontSize: "0.75rem", margin: 0 }}>Davom etish</p>
                 </div>
-                <ArrowRight size={18} style={{ color: "#ADA996" }} />
+                <ArrowRight size={16} style={{ color: "#ADA996", marginLeft: "auto" }} />
               </button>
             ))}
-            <div className="divider my-4 opacity-20" />
           </div>
         )}
-        <input
-          className="w-full text-[#F2F2F2] placeholder:text-[#ADA996] rounded-2xl px-4 py-3 outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", fontSize: 16 }}
-          placeholder="Ismingiz yoki laqabingiz"
-          value={name}
-          onChange={e => { setName(e.target.value); setError(""); }}
-          onKeyDown={e => e.key === "Enter" && create()}
-          maxLength={40}
-        />
-        {error && <p className="text-small text-[#C65B55]">{error}</p>}
-        <button
-          onClick={create}
-          disabled={loading || !name.trim()}
-          className="w-full h-14 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-base transition-opacity disabled:opacity-50"
-          style={{ background: loading ? "#666" : "#FF633C", boxShadow: "0 4px 20px rgba(255,99,60,0.35)" }}
-        >
-          {loading ? <Spinner size={20} /> : <>Boshlash <ArrowRight size={18} /></>}
-        </button>
+
+        {/* Create form */}
+        <div style={{ width: "100%", maxWidth: 320 }}>
+          {profiles.length > 0 && <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(173,169,150,0.5)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Yangi profil</p>}
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input value={firstName} onChange={e => { setFirstName(e.target.value); setError(""); }} placeholder="Ism *" onKeyDown={e => e.key === "Enter" && create()} maxLength={30} style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, color: "#F2F2F2", fontSize: 16, outline: "none" }} />
+            <input value={lastName}  onChange={e => setLastName(e.target.value)}  placeholder="Familiya" maxLength={30} style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, color: "#F2F2F2", fontSize: 16, outline: "none" }} />
+          </div>
+          {error && <p style={{ color: "#C65B55", fontSize: "0.8rem", marginBottom: 8 }}>{error}</p>}
+          <button onClick={create} style={{ width: "100%", padding: "14px", background: "#FF633C", border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 20px rgba(255,99,60,0.4)" }}>
+            Boshlash <ArrowRight size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );

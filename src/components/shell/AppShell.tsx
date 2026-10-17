@@ -1,56 +1,69 @@
 "use client";
-
 import { type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Sun,      // Today
-  Moon,     // Sleep
-  CalendarDays, // Plan
-  BarChart2, // Progress
-  User,     // Profile
-} from "lucide-react";
+import { Sun, Moon, CalendarDays, BarChart2, User } from "lucide-react";
 
 const NAV = [
-  { href: "/today",    label: "Bugun",     icon: Sun         },
-  { href: "/sleep",    label: "Uyqu",      icon: Moon        },
-  { href: "/plan",     label: "Reja",      icon: CalendarDays},
-  { href: "/progress", label: "Taraqqiyot",icon: BarChart2   },
-  { href: "/profile",  label: "Profil",    icon: User        },
+  { href: "/today",    label: "Bugun",     Icon: Sun          },
+  { href: "/sleep",    label: "Uyqu",      Icon: Moon         },
+  { href: "/plan",     label: "Reja",      Icon: CalendarDays },
+  { href: "/progress", label: "Taraqqiyot",Icon: BarChart2    },
+  { href: "/profile",  label: "Profil",    Icon: User         },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-
+  const path = usePathname();
   return (
-    <div className="min-h-dvh flex flex-col">
-      {/* page content */}
-      <main className="flex-1 pb-nav">{children}</main>
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+      <main style={{ flex: 1 }}>{children}</main>
 
-      {/* bottom nav */}
-      <nav className="bottom-nav" aria-label="Asosiy navigatsiya">
-        <div className="flex items-center justify-around h-[56px] max-w-lg mx-auto px-2">
-          {NAV.map(item => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+      {/* Liquid Glass Bottom Nav */}
+      <nav
+        className="glass-nav"
+        style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+        aria-label="Asosiy navigatsiya"
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", maxWidth: 520, margin: "0 auto" }}>
+          {NAV.map(({ href, label, Icon }) => {
+            const active = path === href || path.startsWith(href + "/");
             return (
               <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center gap-0.5 min-w-[52px] py-1 rounded-xl transition-colors ${
-                  active
-                    ? "text-[var(--c-ink)]"
-                    : "text-[var(--c-ink2)] hover:text-[var(--c-ink)]"
-                }`}
+                key={href}
+                href={href}
                 aria-current={active ? "page" : undefined}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 3, padding: "10px 4px 10px", textDecoration: "none", position: "relative",
+                  transition: "all 0.2s ease",
+                }}
               >
-                <span className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition-all ${active ? "bg-[var(--c-surface2)]" : ""}`}>
-                  <item.icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-                  {active && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#FF633C]" />
-                  )}
-                </span>
-                <span className={`text-label leading-none ${active ? "text-[var(--c-ink)]" : "text-[var(--c-ink2)]"}`} style={{ letterSpacing: "0.04em", fontSize: "9px" }}>
-                  {item.label}
+                {/* Active pill */}
+                {active && (
+                  <div style={{
+                    position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)",
+                    width: 32, height: 32, borderRadius: 10,
+                    background: "var(--lamp-orange)", opacity: 0.15,
+                  }} />
+                )}
+                <Icon
+                  size={22}
+                  strokeWidth={active ? 2.5 : 1.8}
+                  style={{
+                    color: active ? "var(--lamp-orange)" : "var(--ink2)",
+                    position: "relative", zIndex: 1,
+                    transition: "color 0.2s",
+                  }}
+                />
+                <span style={{
+                  fontSize: "0.6rem", fontWeight: active ? 700 : 500, letterSpacing: "0.04em",
+                  color: active ? "var(--lamp-orange)" : "var(--ink2)",
+                  transition: "color 0.2s",
+                }}>
+                  {label}
                 </span>
               </Link>
             );
