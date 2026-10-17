@@ -32,7 +32,7 @@ export function InlineTaskAdd({ dueDate, goalId, placeholder, onAdded }: {
     <form onSubmit={submit} className="flex gap-2">
       <input
         className="input flex-1 py-2.5"
-        placeholder={placeholder ?? "Vazifa qo'shish…"}
+        placeholder={placeholder ?? "Vazifa qo'apos;shish…"}
         value={val}
         onChange={e => setVal(e.target.value)}
         maxLength={160}

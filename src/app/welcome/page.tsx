@@ -14,6 +14,7 @@ export default function Welcome() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true);
     // Try Telegram user
     if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {

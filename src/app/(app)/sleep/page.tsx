@@ -108,7 +108,7 @@ export default function SleepPage() {
                     </p>
                     {lastStatus && (
                       <span className="badge mt-1 inline-block" style={{ background: `${statusColors[lastStatus]}22`, color: statusColors[lastStatus] }}>
-                        {lastStatus === "green" ? "O'z vaqtida" : lastStatus === "yellow" ? "Biroz kech" : "Sifatsiz"}
+                        {lastStatus === "green" ? "O'apos;z vaqtida" : lastStatus === "yellow" ? "Biroz kech" : "Sifatsiz"}
                       </span>
                     )}
                   </div>
@@ -126,7 +126,7 @@ export default function SleepPage() {
                   <p className="text-h2 text-[#F2F2F2]">{prefs.bedtime ?? "—"}</p>
                 </div>
                 <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.04)" }}>
-                  <p className="text-label text-[#ADA996] mb-1">UYG'ONISH</p>
+                  <p className="text-label text-[#ADA996] mb-1">UYG'apos;ONISH</p>
                   <p className="text-h2 text-[#F2F2F2]">{prefs.wakeTime ?? "—"}</p>
                 </div>
               </div>
@@ -145,7 +145,7 @@ export default function SleepPage() {
           <div className="card">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-h3">7 kunlik trend</h2>
-              {avg && <p className="text-small text-[var(--c-ink2)]">O'rtacha: {fmtDuration(avg)}</p>}
+              {avg && <p className="text-small text-[var(--c-ink2)]">O'apos;rtacha: {fmtDuration(avg)}</p>}
             </div>
             <div className="flex items-end gap-2 h-20">
               {Array.from({ length: 7 }).map((_, i) => {
@@ -168,7 +168,7 @@ export default function SleepPage() {
               })}
             </div>
             <div className="flex gap-4 mt-4 flex-wrap">
-              {[["#3F8065","O'z vaqtida"],["#C8943E","Biroz kech"],["#C65B55","Sifatsiz"]].map(([c,l]) => (
+              {[["#3F8065","O'apos;z vaqtida"],["#C8943E","Biroz kech"],["#C65B55","Sifatsiz"]].map(([c,l]) => (
                 <div key={l} className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full" style={{ background: c }} />
                   <span className="text-small text-[var(--c-ink2)]">{l}</span>
@@ -188,7 +188,7 @@ export default function SleepPage() {
       {/* Settings modal */}
       <Modal open={showSettings} onClose={() => setShowSettings(false)} title="Uyqu sozlamalari" size="sm">
         <div className="space-y-4">
-          <Field label="Uyg'onish vaqti" htmlFor="sw-wake">
+          <Field label="Uyg'apos;onish vaqti" htmlFor="sw-wake">
             <input id="sw-wake" type="time" className="input" value={editWake} onChange={e => setEditWake(e.target.value)} />
           </Field>
           <Field label="Uyqu vaqti" htmlFor="sw-bed">

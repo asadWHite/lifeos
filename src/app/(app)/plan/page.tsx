@@ -29,27 +29,28 @@ export default function PlanPage() {
   const reload = useCallback(() => {
     const id = Storage.getCurrentProfileId();
     if (!id) return;
+    
+    const allTasks = Storage.getTasks().filter(t => t.profileId === id);
+    const allGoals = Storage.getGoals().filter(g => g.profileId === id && g.status === "active");
+    const allHabits = Storage.getHabits().filter(h => h.profileId === id && h.status === "active");
+    const allLogs = Storage.getHabitLogs().filter(l => 
+      allHabits.some(h => h.id === l.habitId) && l.date === today
+    );
+
     setPid(id);
-    setTasks(Storage.getTasks().filter(t => t.profileId === id));
-    setGoals(Storage.getGoals().filter(g => g.profileId === id && g.status === "active"));
-    setHabits(Storage.getHabits().filter(h => h.profileId === id && h.status === "active"));
-    setHabitLogs(Storage.getHabitLogs().filter(l =>
-      habits.some(h => h.id === l.habitId) && l.date === today
-    ));
-  }, [today, habits]);
+    setTasks(allTasks);
+    setGoals(allGoals);
+    setHabits(allHabits);
+    setHabitLogs(allLogs);
+  }, [today]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true);
     const id = Storage.getCurrentProfileId();
     if (!id || !Storage.getProfile(id)) { router.replace("/welcome"); return; }
-    const pid2 = id;
-    setPid(pid2);
-    setTasks(Storage.getTasks().filter(t => t.profileId === pid2));
-    setGoals(Storage.getGoals().filter(g => g.profileId === pid2 && g.status === "active"));
-    const h = Storage.getHabits().filter(h => h.profileId === pid2 && h.status === "active");
-    setHabits(h);
-    setHabitLogs(Storage.getHabitLogs().filter(l => h.some(x => x.id === l.habitId) && l.date === today));
-  }, [router, today]);
+    reload();
+  }, [router, reload]);
 
   if (!mounted) return null;
 
@@ -57,7 +58,7 @@ export default function PlanPage() {
   const todayOpen = tasks.filter(t => t.status !== "done" && t.dueDate === today);
   const todayDone = tasks.filter(t => t.status === "done"  && t.dueDate === today);
   const upcoming  = tasks.filter(t => t.status !== "done" && t.dueDate && t.dueDate > today)
-                         .sort((a,b) => a.dueDate! > b.dueDate! ? 1 : -1);
+                         .sort((a,b) => (a.dueDate ?? "") > (b.dueDate ?? "") ? 1 : -1);
   const goalMap = Object.fromEntries(goals.map(g => [g.id, g.title]));
 
   return (
@@ -67,7 +68,6 @@ export default function PlanPage() {
         <p className="text-body text-[var(--c-ink2)] mt-1">Vazifalar va odatlar</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex px-4 gap-2 mb-4">
         {(["tasks","habits"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-xl text-small font-semibold transition-all ${tab===t?"bg-[var(--c-ink)] text-[var(--c-bg)]":"bg-[var(--c-surface)] text-[var(--c-ink2)]"}`}>
@@ -78,13 +78,13 @@ export default function PlanPage() {
 
       {tab === "tasks" && (
         <div className="px-4 space-y-4">
-          <InlineTaskAdd dueDate={today} onAdded={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(t=>t.profileId===id)); }} />
+          <InlineTaskAdd dueDate={today} onAdded={reload} />
 
           {overdue.length > 0 && (
             <div>
               <p className="text-label text-[#C65B55] px-1 mb-2">KECHIKKAN</p>
-              <div className="card divide-y divide-[var(--c-border)] -py-3">
-                {overdue.map(t => <TaskRowComp key={t.id} task={t} onChanged={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(x=>x.profileId===id)); }} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
+              <div className="card divide-y divide-[var(--c-border)]">
+                {overdue.map(t => <TaskRowComp key={t.id} task={t} onChanged={reload} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
               </div>
             </div>
           )}
@@ -92,8 +92,8 @@ export default function PlanPage() {
           {todayOpen.length > 0 && (
             <div>
               <p className="text-label text-[var(--c-ink2)] px-1 mb-2">BUGUN</p>
-              <div className="card divide-y divide-[var(--c-border)] -py-3">
-                {todayOpen.map(t => <TaskRowComp key={t.id} task={t} onChanged={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(x=>x.profileId===id)); }} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
+              <div className="card divide-y divide-[var(--c-border)]">
+                {todayOpen.map(t => <TaskRowComp key={t.id} task={t} onChanged={reload} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
               </div>
             </div>
           )}
@@ -106,7 +106,7 @@ export default function PlanPage() {
             <div>
               <p className="text-label text-[#3F8065] px-1 mb-2">BAJARILDI</p>
               <div className="card divide-y divide-[var(--c-border)] opacity-60">
-                {todayDone.map(t => <TaskRowComp key={t.id} task={t} onChanged={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(x=>x.profileId===id)); }} />)}
+                {todayDone.map(t => <TaskRowComp key={t.id} task={t} onChanged={reload} />)}
               </div>
             </div>
           )}
@@ -114,8 +114,8 @@ export default function PlanPage() {
           {upcoming.length > 0 && (
             <div>
               <p className="text-label text-[var(--c-ink2)] px-1 mb-2">KEYINGI KUNLAR</p>
-              <div className="card divide-y divide-[var(--c-border)] -py-3">
-                {upcoming.slice(0,5).map(t => <TaskRowComp key={t.id} task={t} onChanged={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(x=>x.profileId===id)); }} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
+              <div className="card divide-y divide-[var(--c-border)]">
+                {upcoming.slice(0,5).map(t => <TaskRowComp key={t.id} task={t} onChanged={reload} goalTitle={t.goalId ? goalMap[t.goalId] : undefined} />)}
               </div>
             </div>
           )}
@@ -124,15 +124,11 @@ export default function PlanPage() {
 
       {tab === "habits" && pid && (
         <div className="px-4">
-          <HabitList profileId={pid} habits={habits} logs={habitLogs} today={today} onChanged={() => {
-            const h = Storage.getHabits().filter(h => h.profileId === pid && h.status === "active");
-            setHabits(h);
-            setHabitLogs(Storage.getHabitLogs().filter(l => h.some(x=>x.id===l.habitId) && l.date===today));
-          }} />
+          <HabitList profileId={pid} habits={habits} logs={habitLogs} today={today} onChanged={reload} />
         </div>
       )}
 
-      <TaskSheet open={showAdd} onClose={() => setShowAdd(false)} onAdded={() => { const id=Storage.getCurrentProfileId(); if(id) setTasks(Storage.getTasks().filter(t=>t.profileId===id)); }} goals={goals} />
+      <TaskSheet open={showAdd} onClose={() => setShowAdd(false)} onAdded={reload} goals={goals} />
     </div>
   );
 }

@@ -78,6 +78,7 @@ export default function ProgressPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true);
     const id = Storage.getCurrentProfileId();
     if (!id || !Storage.getProfile(id)) { router.replace("/welcome"); return; }
@@ -138,7 +139,7 @@ export default function ProgressPage() {
         {tab === "active" && (
           <>
             {active.length === 0 && (
-              <EmptyState icon={Target} title="Hali maqsad yo'q" body="Birinchi maqsadingizni yarating va lamp rejasini sozlang" action={<button onClick={() => setShowAdd(true)} className="btn btn-primary btn-sm">Maqsad qo'shish</button>} />
+              <EmptyState icon={Target} title="Hali maqsad yo'apos;q" body="Birinchi maqsadingizni yarating va lamp rejasini sozlang" action={<button onClick={() => setShowAdd(true)} className="btn btn-primary btn-sm">Maqsad qo'apos;shish</button>} />
             )}
             {active.map(g => {
               const pct = g.metricTarget ? Math.round((g.metricProgress / g.metricTarget) * 100) : null;
@@ -185,7 +186,7 @@ export default function ProgressPage() {
 
         {tab === "completed" && (
           <>
-            {completed.length === 0 && <EmptyState icon={Check} title="Hali bajarilgan maqsad yo'q" body="Faol maqsad yarating va uni bajarishga harakat qiling" />}
+            {completed.length === 0 && <EmptyState icon={Check} title="Hali bajarilgan maqsad yo'apos;q" body="Faol maqsad yarating va uni bajarishga harakat qiling" />}
             {completed.map(g => (
               <div key={g.id} className="card flex items-center gap-4 opacity-70">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{background:g.status==="archived"?"var(--c-surface2)":"rgba(63,128,101,0.15)"}}>
@@ -200,7 +201,7 @@ export default function ProgressPage() {
 
         {tab === "reminders" && (
           <>
-            {scheduled.length === 0 && <EmptyState icon={Target} title="Lamp rejalari yo'q" body="Bugun ekranida lamp rejasini qo'shing" />}
+            {scheduled.length === 0 && <EmptyState icon={Target} title="Lamp rejalari yo'apos;q" body="Bugun ekranida lamp rejasini qo'apos;shing" />}
             {scheduled.map(s => {
               const g = goals.find(x => x.id === s.goalId);
               const fire = s.state !== "completed" ? (() => { try { return new Date(s.scheduledAt).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); } catch { return "—"; } })() : null;
@@ -209,7 +210,7 @@ export default function ProgressPage() {
                 <div key={s.id} className="card flex items-center gap-4">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:stateColors[s.state]??stateColors.idle}}/>
                   <div className="flex-1">
-                    <p className="text-body font-semibold">{g?.title ?? "Maqsad o'chirilgan"}</p>
+                    <p className="text-body font-semibold">{g?.title ?? "Maqsad o'apos;chirilgan"}</p>
                     <p className="text-small text-[var(--c-ink2)]">{fire ?? "Bajarildi"} · {fmtDuration(s.duration)} · {s.repeat==="once"?"Bir marta":s.repeat==="daily"?"Har kuni":"Ish kunlari"}</p>
                   </div>
                   <button onClick={() => { Storage.deleteScheduledGoal(s.id); reload(); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[#C65B55]"><Trash2 size={14}/></button>

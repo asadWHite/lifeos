@@ -47,7 +47,7 @@ export function TaskSheet({ open, onClose, onAdded, goals = [], defaultGoalId, d
           <div className="flex gap-2">
             {(["low","normal","high"] as const).map(p => (
               <button key={p} onClick={() => setPriority(p)} className={`btn btn-sm flex-1 ${priority===p ? "btn-primary":"btn-ghost"}`}>
-                {p === "high" ? "Yuqori" : p === "normal" ? "O'rta" : "Oddiy"}
+                {p === "high" ? "Yuqori" : p === "normal" ? "O'apos;rta" : "Oddiy"}
               </button>
             ))}
           </div>

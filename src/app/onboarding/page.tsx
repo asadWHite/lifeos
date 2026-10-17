@@ -18,7 +18,7 @@ const AGE_GROUPS = [
 ];
 
 const LIFE_STAGES = [
-  { id: "school", label: "O'quvchi" },
+  { id: "school", label: "O'apos;quvchi" },
   { id: "university", label: "Talaba" },
   { id: "employed", label: "Xodim" },
   { id: "entrepreneur", label: "Tadbirkor" },

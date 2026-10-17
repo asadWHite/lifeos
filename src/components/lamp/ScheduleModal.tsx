@@ -69,7 +69,7 @@ export function ScheduleModal({ open, onClose, goals, profileId, onSaved }: {
         <Field label="Maqsad" htmlFor="sg-goal">
           <select id="sg-goal" className="input" value={goalId} onChange={e => setGoalId(e.target.value)}>
             {goals.length === 0
-              ? <option value="">Avval maqsad qo'shing</option>
+              ? <option value="">Avval maqsad qo'apos;shing</option>
               : goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
           </select>
         </Field>

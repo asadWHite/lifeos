@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Check, Clock, RotateCcw, X } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Check, Clock, X } from "lucide-react";
 import {
   Storage,
-  generateId,
   nextFireTime,
   fmtDuration,
   type ScheduledGoalRow,
@@ -12,246 +11,309 @@ import {
   type LampReminderState,
 } from "@/lib/client/storage";
 
-/* ─── SVG Lamp visual ────────────────────────────────────────────────── */
-function LampSVG({ lit, size = 220 }: { lit: boolean; size?: number }) {
+/*
+ * ════════════════════════════════════════════════════════════════════
+ *  SIGNATURE LAMP SVG — Exact Reference Match
+ *
+ *  Reference image anatomy:
+ *  - Vertical pole on the RIGHT side, going up
+ *  - Curved arm from pole top bending LEFT toward the lamp head
+ *  - Domed dark shade tilted down-left, opening faces down-left
+ *  - Bright pale reflector interior visible inside the opening
+ *  - Distinctive curved orange loop on TOP of the shade
+ *  - Articulated joint where arm meets shade
+ *  - Light beam projects DOWN-LEFT from the shade opening
+ *
+ *  Coordinate system: viewBox 0 0 600 700
+ *  Pole base at bottom-right, shade at upper-left area
+ * ════════════════════════════════════════════════════════════════════
+ */
+function LampSVG({ lit }: { lit: boolean }) {
   return (
     <svg
-      width={size}
-      height={size * 1.4}
-      viewBox="0 0 220 308"
+      viewBox="0 0 600 700"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
+      className="w-full h-full"
+      aria-hidden="true"
     >
-      {/* ── Light beam (SVG gradient cone) ── */}
+      <defs>
+        {/* Shade material gradient */}
+        <linearGradient id="shadeBody" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#2A3040" />
+          <stop offset="50%" stopColor="#1E2530" />
+          <stop offset="100%" stopColor="#151B23" />
+        </linearGradient>
+
+        {/* Reflector interior when lit */}
+        <radialGradient id="reflectorLit" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+          <stop offset="60%" stopColor="#FFF5E6" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#FFD9A0" stopOpacity="0.4" />
+        </radialGradient>
+
+        {/* Beam gradient — warm white fading out */}
+        <radialGradient id="beamGrad" cx="30%" cy="0%" r="100%">
+          <stop offset="0%" stopColor="#FFFBF0" stopOpacity="0.6" />
+          <stop offset="35%" stopColor="#FFE8C8" stopOpacity="0.25" />
+          <stop offset="70%" stopColor="#FFCFA0" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#FF9040" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Soft glow filter */}
+        <filter id="softGlow">
+          <feGaussianBlur stdDeviation="8" />
+        </filter>
+        <filter id="wideGlow">
+          <feGaussianBlur stdDeviation="20" />
+        </filter>
+      </defs>
+
+      {/* ── LIGHT BEAM (projects down-left from shade) ── */}
       {lit && (
-        <defs>
-          <radialGradient id="beamGrad" cx="50%" cy="0%" r="100%">
-            <stop offset="0%" stopColor="#FFB16A" stopOpacity="0.55" />
-            <stop offset="60%" stopColor="#FF633C" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#FF633C" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#FFB16A" stopOpacity="1" />
-            <stop offset="100%" stopColor="#FFB16A" stopOpacity="0" />
-          </radialGradient>
-        </defs>
+        <g style={{ transition: "opacity 1.2s ease" }}>
+          {/* Wide ambient glow on the "floor" */}
+          <ellipse
+            cx="140" cy="650" rx="250" ry="60"
+            fill="rgba(255,230,180,0.12)"
+            filter="url(#wideGlow)"
+          />
+          {/* Main beam cone: originates from shade opening, fans down-left */}
+          <path
+            d="M255 295 L20 700 L380 700 Z"
+            fill="url(#beamGrad)"
+            style={{ mixBlendMode: "screen" }}
+          />
+          {/* Concentrated inner beam */}
+          <path
+            d="M255 295 L100 700 L300 700 Z"
+            fill="rgba(255,251,240,0.12)"
+            style={{ mixBlendMode: "screen" }}
+          />
+        </g>
       )}
 
-      {/* Beam */}
-      {lit && (
-        <polygon
-          points="110,80 20,308 200,308"
-          fill="url(#beamGrad)"
-          style={{ transition: "opacity 1.2s ease" }}
-          className="animate-beam"
+      {/* ── VERTICAL POLE (right side) ── */}
+      {/* Shadow layer */}
+      <line x1="470" y1="690" x2="470" y2="220" stroke="#0D1117" strokeWidth="22" strokeLinecap="round" />
+      {/* Main pole */}
+      <line x1="470" y1="690" x2="470" y2="220" stroke="#1E2530" strokeWidth="16" strokeLinecap="round" />
+      {/* Subtle highlight on pole */}
+      <line x1="475" y1="690" x2="475" y2="220" stroke="#2A3545" strokeWidth="2" strokeLinecap="round" />
+
+      {/* Base plate */}
+      <ellipse cx="470" cy="690" rx="50" ry="10" fill="#1E2530" />
+      <ellipse cx="470" cy="688" rx="45" ry="8" fill="#232B38" />
+
+      {/* ── CURVED ARM (pole top → shade) ── */}
+      <path
+        d="M470 220 Q470 170 420 160 L320 150"
+        stroke="#0D1117" strokeWidth="18" strokeLinecap="round" fill="none"
+      />
+      <path
+        d="M470 220 Q470 170 420 160 L320 150"
+        stroke="#1E2530" strokeWidth="12" strokeLinecap="round" fill="none"
+      />
+      {/* Arm highlight */}
+      <path
+        d="M468 220 Q468 172 418 162 L322 152"
+        stroke="#2A3545" strokeWidth="1.5" strokeLinecap="round" fill="none"
+      />
+
+      {/* ── ARTICULATED JOINT ── */}
+      <circle cx="320" cy="150" r="12" fill="#151B23" stroke="#2A3545" strokeWidth="2" />
+      <circle cx="320" cy="150" r="5" fill="#1E2530" />
+
+      {/* ── ORANGE LOOP (distinctive reference feature — on top) ── */}
+      <path
+        d="M275 115 Q290 80 305 115"
+        stroke="#FF633C" strokeWidth="7" fill="none" strokeLinecap="round"
+      />
+
+      {/* ── LAMP HEAD / SHADE ── */}
+      {/* The shade is tilted down-left. We rotate the shade group. */}
+      <g transform="rotate(-30, 280, 200)">
+        {/* Outer dome */}
+        <path
+          d="M210 155 C210 115 350 115 350 155 L365 240 C365 265 195 265 195 240 Z"
+          fill="url(#shadeBody)"
+          stroke="#151B23" strokeWidth="1.5"
         />
-      )}
+        {/* Shade rim — subtle metallic edge */}
+        <ellipse cx="280" cy="250" rx="85" ry="16" fill="none" stroke="#3A4555" strokeWidth="1.5" />
 
-      {/* Arm from pole to head */}
-      {/* Vertical pole */}
-      <rect x="105" y="170" width="10" height="130" rx="5" fill="#2B3440" />
-      {/* Base */}
-      <rect x="70" y="292" width="80" height="16" rx="8" fill="#2B3440" />
+        {/* Inner reflector (bright when lit, dark when off) */}
+        <ellipse
+          cx="280" cy="248" rx="75" ry="13"
+          fill={lit ? "url(#reflectorLit)" : "#1A2030"}
+          style={{ transition: "fill 0.8s ease" }}
+        />
 
-      {/* Arm */}
-      <line x1="110" y1="170" x2="110" y2="90" stroke="#2B3440" strokeWidth="9" strokeLinecap="round" />
-      <line x1="110" y1="90" x2="152" y2="68" stroke="#2B3440" strokeWidth="9" strokeLinecap="round" />
+        {/* Glowing bulb when lit */}
+        {lit && (
+          <>
+            <circle cx="280" cy="240" r="18" fill="#FFFBF0" opacity="0.9" filter="url(#softGlow)" />
+            <circle cx="280" cy="240" r="8" fill="#FFFFFF" />
+          </>
+        )}
 
-      {/* Head housing */}
-      <ellipse cx="152" cy="68" rx="28" ry="12" fill="#202833" />
-      <path d="M124 68 Q152 110 180 68" fill="#202833" stroke="#2B3440" strokeWidth="1.5" />
-
-      {/* Rim highlight */}
-      <ellipse
-        cx="152" cy="68" rx="28" ry="12"
-        fill="none"
-        stroke={lit ? "#FFB16A" : "#3A4455"}
-        strokeWidth="1.5"
-        style={{ transition: "stroke 0.8s ease" }}
-      />
-
-      {/* Light source */}
-      <circle
-        cx="152" cy="72"
-        r={lit ? "11" : "8"}
-        fill={lit ? "#FFB16A" : "#2B3440"}
-        style={{ transition: "fill 0.8s ease, r 0.8s ease" }}
-      />
-      {lit && (
-        <circle cx="152" cy="72" r="18" fill="url(#glowGrad)" className="animate-glow" />
-      )}
+        {/* Mounting hardware on top of shade */}
+        <rect x="272" y="132" width="16" height="25" rx="4" fill="#1A2030" />
+      </g>
     </svg>
   );
 }
 
-/* ─── State machine helpers ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   STATE MACHINE + SCHEDULER
+   ═══════════════════════════════════════════════════════════════════ */
+
 const SNOOZE_MINUTES = 10;
 
-function resolveCurrentState(sg: ScheduledGoalRow): LampReminderState {
-  if (sg.state === "completed") return "completed";
-  if (sg.state === "snoozed") {
-    if (sg.snoozeUntil && new Date(sg.snoozeUntil) <= new Date()) return "active";
-    return "snoozed";
-  }
-  const fire = nextFireTime(sg);
-  if (!fire) return "missed";
-  const minsUntil = (fire.getTime() - Date.now()) / 60000;
-  if (minsUntil <= 0) return "active";
-  if (minsUntil <= 15) return "upcoming";
-  return "idle";
-}
-
-/* ─── Main Lamp component ────────────────────────────────────────────── */
 export function LampComponent({ profileId }: { profileId: string }) {
   const [sg, setSg] = useState<ScheduledGoalRow | null>(null);
   const [goal, setGoal] = useState<GoalRow | null>(null);
-  const [lampState, setLampState] = useState<LampReminderState>("idle");
-  const [tick, setTick] = useState(0); // forces re-check every minute
+  const [state, setState] = useState<LampReminderState>("idle");
+  const didActivate = useRef(false);
 
-  const reload = useCallback(() => {
-    const scheduled = Storage.getScheduledGoals()
-      .filter(s => s.profileId === profileId && s.state !== "completed")
+  const check = useCallback(() => {
+    const all = Storage.getScheduledGoals()
+      .filter(s => s.profileId === profileId && s.state !== "completed" && s.state !== "missed")
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-    const active = scheduled[0] ?? null;
-    setSg(active);
-    if (active) {
-      const g = Storage.getGoals().find(x => x.id === active.goalId) ?? null;
-      setGoal(g);
-      setLampState(resolveCurrentState(active));
+
+    const current = all[0] ?? null;
+    setSg(current);
+
+    if (!current) { setGoal(null); setState("idle"); didActivate.current = false; return; }
+
+    const g = Storage.getGoals().find(x => x.id === current.goalId) ?? null;
+    setGoal(g);
+
+    const fire = nextFireTime(current);
+    if (!fire) { setState("missed"); return; }
+
+    const diff = (fire.getTime() - Date.now()) / 60000;
+
+    if (diff <= 0) {
+      if (!didActivate.current && current.state !== "active") {
+        Storage.saveScheduledGoal({ ...current, state: "active" });
+        didActivate.current = true;
+      }
+      setState("active");
+    } else if (diff <= 15) {
+      setState("upcoming");
+      didActivate.current = false;
     } else {
-      setGoal(null);
-      setLampState("idle");
+      setState("idle");
+      didActivate.current = false;
     }
   }, [profileId]);
 
-  useEffect(() => { reload(); }, [reload, tick]);
-
   useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 30000);
-    const onVis = () => { if (document.visibilityState === "visible") setTick(n => n + 1); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
-  }, []);
+    check();
+    const t = setInterval(check, 30000);
+    const vis = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [check]);
 
-  /* actions */
   function complete() {
     if (!sg) return;
     Storage.saveScheduledGoal({ ...sg, state: "completed", completedAt: new Date().toISOString() });
-    // Update goal progress
-    const g = Storage.getGoals().find(x => x.id === sg.goalId);
-    if (g && g.metricTarget) {
-      Storage.saveGoal({ ...g, metricProgress: Math.min(g.metricTarget, g.metricProgress + 1) });
-    }
-    reload();
+    didActivate.current = false;
+    check();
   }
-
   function snooze() {
     if (!sg) return;
-    const until = new Date(Date.now() + SNOOZE_MINUTES * 60000).toISOString();
-    Storage.saveScheduledGoal({ ...sg, state: "snoozed", snoozeUntil: until });
-    reload();
+    Storage.saveScheduledGoal({ ...sg, state: "snoozed", snoozeUntil: new Date(Date.now() + SNOOZE_MINUTES * 60000).toISOString() });
+    didActivate.current = false;
+    check();
   }
-
   function dismiss() {
     if (!sg) return;
     Storage.saveScheduledGoal({ ...sg, state: "missed", missedAt: new Date().toISOString() });
-    reload();
+    didActivate.current = false;
+    check();
   }
 
-  const lit = lampState === "active" || lampState === "upcoming";
+  const isLit = state === "active";
   const fire = sg ? nextFireTime(sg) : null;
 
   return (
-    <div className="flex flex-col items-center select-none">
-      {/* Lamp visual */}
-      <div className="relative" style={{ width: 220, height: 308 }}>
-        {/* Ambient glow when lit */}
-        {lit && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse at 70% 25%, rgba(255,177,106,0.22) 0%, transparent 65%)",
-              transition: "opacity 1.2s ease",
-            }}
-          />
-        )}
-        <LampSVG lit={lit} />
-      </div>
+    <div className="w-full relative">
+      {/* ── Lamp Visual ── */}
+      <div className="relative w-full" style={{ maxWidth: 440, margin: "0 auto" }}>
+        <div style={{ aspectRatio: "600 / 700" }}>
+          <LampSVG lit={isLit} />
+        </div>
 
-      {/* Text area */}
-      <div className="text-center mt-6 px-4 min-h-[100px] flex flex-col items-center justify-center">
-        {lampState === "active" && goal && (
-          <div className="animate-text-reveal space-y-1">
-            <p className="text-label text-[#FF633C] mb-2">HOZIR VAQTI</p>
-            <p className="text-h2 text-[#F2F2F2] leading-snug max-w-[260px]">{goal.title}</p>
+        {/* ── Goal Text (Stage C: revealed BY the light beam, down-left) ── */}
+        {isLit && goal && (
+          <div
+            className="absolute z-20"
+            style={{
+              left: "5%",
+              bottom: "12%",
+              maxWidth: "55%",
+              animation: "text-emerge 1.2s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "clamp(1.3rem, 4vw, 2.2rem)",
+                fontWeight: 800,
+                color: "#FFFFFF",
+                lineHeight: 1.15,
+                letterSpacing: "-0.02em",
+                textShadow: "0 2px 30px rgba(255,230,180,0.4), 0 0 10px rgba(255,255,255,0.15)",
+              }}
+            >
+              {goal.title}
+            </p>
             {sg?.duration && (
-              <p className="text-body text-[#ADA996] mt-1">{fmtDuration(sg.duration)}</p>
+              <p style={{ fontSize: "0.9rem", color: "#ADA996", marginTop: 8, fontWeight: 600 }}>
+                — {fmtDuration(sg.duration)}
+              </p>
             )}
           </div>
         )}
 
-        {lampState === "upcoming" && goal && fire && (
-          <div className="animate-fade-up space-y-1">
-            <p className="text-label text-[#C8943E] mb-2">YAQINLASHMOQDA</p>
-            <p className="text-h3 text-[#F2F2F2]">{goal.title}</p>
-            <p className="text-body text-[#ADA996] flex items-center gap-1.5 justify-center">
-              <Clock size={14} />
-              {fire.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+        {/* ── Upcoming indicator (before activation) ── */}
+        {!isLit && sg && fire && (
+          <div className="absolute top-6 left-6 z-10" style={{ opacity: 0.7 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#ADA996", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              {state === "snoozed" ? "ERTELANGAN" : "KEYINGI"}
+            </p>
+            <p style={{ fontSize: 18, fontWeight: 800, color: "#F2F2F2", marginTop: 2 }}>
+              {fire.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+            {goal && (
+              <p style={{ fontSize: 13, color: "#ADA996", marginTop: 2 }}>{goal.title}</p>
+            )}
+          </div>
+        )}
+
+        {/* ── No scheduled goal ── */}
+        {!sg && (
+          <div className="absolute top-6 left-6 z-10" style={{ opacity: 0.5 }}>
+            <p style={{ fontSize: 13, color: "#ADA996", fontStyle: "italic" }}>
+              Maqsad belgilang — lamp yoqiladi
             </p>
           </div>
         )}
-
-        {(lampState === "idle" || lampState === "snoozed") && (
-          <div className="space-y-1">
-            {sg && goal && fire && (
-              <>
-                <p className="text-label text-[#ADA996]">{lampState === "snoozed" ? "ERTELANMOQDA" : "KEYINGI MAQSAD"}</p>
-                <p className="text-body text-[#F2F2F2] font-semibold">{goal.title}</p>
-                <p className="text-small text-[#ADA996] flex items-center gap-1.5 justify-center">
-                  <Clock size={12} />
-                  {fire.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                  {lampState === "snoozed" && " · Ertelandi"}
-                </p>
-              </>
-            )}
-            {!sg && (
-              <p className="text-body text-[#ADA996]">Maqsad belgilang — lamp yoqiladi</p>
-            )}
-          </div>
-        )}
-
-        {lampState === "missed" && goal && (
-          <div className="space-y-1 animate-fade-up">
-            <p className="text-label text-[#C65B55]">O&apos;TKAZIB YUBORILDI</p>
-            <p className="text-body text-[#ADA996]">{goal.title}</p>
-          </div>
-        )}
       </div>
 
-      {/* Action buttons when active */}
-      {lampState === "active" && (
-        <div className="flex gap-3 mt-6 animate-fade-up delay-700">
-          <button onClick={snooze} className="btn btn-ghost btn-sm">
-            <Clock size={15} /> {SNOOZE_MINUTES}m ertelash
+      {/* ── Action Buttons (Stage D) ── */}
+      {isLit && (
+        <div className="flex items-center justify-center gap-3 mt-6" style={{ animation: "fade-up 0.5s 1s both" }}>
+          <button onClick={complete} className="btn-action" style={{ background: "rgba(63,128,101,0.2)", borderColor: "rgba(63,128,101,0.4)" }}>
+            <Check size={16} className="inline mr-1.5" /> Bajarildi
           </button>
-          <button onClick={complete} className="btn btn-lamp btn-sm">
-            <Check size={15} /> Bajarildi
+          <button onClick={snooze} className="btn-action">
+            <Clock size={16} className="inline mr-1.5" /> {SNOOZE_MINUTES}m
           </button>
-          <button onClick={dismiss} className="w-9 h-9 flex items-center justify-center rounded-full text-[#ADA996] hover:text-[#F2F2F2]">
+          <button onClick={dismiss} className="btn-action" style={{ padding: "10px 14px" }}>
             <X size={16} />
-          </button>
-        </div>
-      )}
-
-      {/* Snoozed actions */}
-      {lampState === "snoozed" && (
-        <div className="flex gap-3 mt-6 animate-fade-up">
-          <button onClick={complete} className="btn btn-ghost btn-sm">
-            <Check size={15} /> Bajarildi
-          </button>
-          <button onClick={() => { if (sg) { Storage.saveScheduledGoal({ ...sg, state: "idle", snoozeUntil: null }); reload(); } }} className="btn btn-ghost btn-sm">
-            <RotateCcw size={15} /> Bekor qilish
           </button>
         </div>
       )}

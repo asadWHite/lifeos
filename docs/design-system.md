@@ -1,63 +1,40 @@
-# LifeOS Design System
+# LifeOS Design System (Reference Match)
 
-## Color Palette
+## Primary Color Palette (Reference 1 & 2)
 
-| Token | Value | Usage |
+| Token | Hex | Usage |
 |---|---|---|
-| `#202833` | Midnight navy | Primary dark surface, headings |
-| `#151B23` | Deep navy-black | Deep backgrounds, lamp scene |
-| `#2B3440` | Blue-charcoal | Secondary dark surface |
-| `#ADA996` | Warm greige | Secondary text, labels |
-| `#F2F2F2` | Soft white | Text on dark surfaces |
-| `#F4F1EA` | Ivory | Light mode background |
-| `#E6E3DA` | Warm stone | Light mode secondary surface |
-| `#FF633C` | Lamp orange | Lamp accent, primary CTA |
-| `#FFB16A` | Soft amber | Lamp glow, beam center |
-| `#3F8065` | Success green | Sleep status good, completed |
-| `#C8943E` | Warning amber | Sleep slightly late, snoozed |
-| `#C65B55` | Error red | Sleep under 2h, overdue, delete |
+| Midnight | `#151B23` | Deep immersive background, shadow depths |
+| Navy | `#202833` | Main dark surface, dashboard header |
+| Charcoal | `#2B3440` | Secondary dark surface, articulated support |
+| Greige | `#ADA996` | Reference 1 material tone, primary dashboard panels |
+| Off-white | `#F2F2F2` | Text on dark, light mode foundation |
+| Ivory | `#F4F1EA` | Light mode page background |
+| Lamp Loop | `#FF633C` | Distinctive curved orange loop on lamp top |
+| Lamp Beam | `#FFFAF0` | Pale bright light source and inner reflector |
 
-## CSS Custom Properties
+## Immersive Scene Composition (Reference 2)
 
-All surfaces use CSS variables `--c-bg`, `--c-surface`, `--c-ink`, etc.
-Switching `data-theme="dark"` on `<html>` swaps the palette.
+- **Background**: Radial gradient from `#202833` to `#151B23`.
+- **Lighting**: Dramatic diagonal beam from the reflector.
+- **Typography**: Crisp white `#FFFFFF` for the revealed goal text.
+- **Scale**: Large centered lamp silhouette with right-side support mechanism.
 
-## Typography Scale
+## Main Interface (Reference 1)
 
-- `.text-display` — 2–3.5rem, weight 800, tracking -0.03em
-- `.text-h1` — 1.5–2.25rem, weight 700
-- `.text-h2` — 1.25rem, weight 700
-- `.text-h3` — 1rem, weight 600
-- `.text-body` — 0.9375rem, line-height 1.6
-- `.text-small` — 0.8125rem
-- `.text-label` — 0.6875rem, uppercase, tracking 0.08em
+- **Surfaces**: Tall vertical panels with greige gradients.
+- **Contrast**: Deep navy text on greige/ivory backgrounds.
+- **Borders**: Refined, low-opacity silver-blue borders.
 
-## Animation classes
+## Component Specifications
 
-- `.animate-fade-up` — entrance from bottom
-- `.animate-beam` — lamp beam expansion
-- `.animate-glow` — pulsing glow
-- `.animate-text-reveal` — blur+opacity goal text reveal
+### Signature Lamp
+- Housing: Domed shade in `#202833`.
+- Interior: Bright white-silver reflector.
+- Accent: Orange loop in `#FF633C`.
+- Support: Vertical pole on the right with articulated joints.
 
-## Component library
-
-All shared components live in `src/components/ui/index.tsx`:
-- `Modal` — bottom sheet on mobile, centered on desktop
-- `EmptyState` — icon + title + body + action
-- `Field` / `FieldError` — form field wrapper
-- `Toggle` — accessible switch
-- `Chip` — pill selection
-- `ProgressRing` — SVG circle progress
-- `Spinner` — loading indicator
-
-## Spacing
-
-8px base grid. Common values: 4, 8, 12, 16, 20, 24, 32, 48px.
-
-## Radii
-
-- Cards: `20px`
-- Buttons: `14px`
-- Pills: `999px`
-- Avatars: `999px`
-- Inner elements: `10–12px`
+### Typography
+- Header 1: Bold, tracking -0.025em.
+- Goal Text: Bold white, text-shadow for depth.
+- Secondary: Greige or muted navy depending on surface.

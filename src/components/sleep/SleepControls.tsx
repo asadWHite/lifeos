@@ -25,7 +25,7 @@ export function sleepStatus(durationMins: number, targetMins: number, wakeISO: s
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  green: "O'z vaqtida",
+  green: "O'apos;z vaqtida",
   yellow: "Biroz kech",
   red: "Sifatsiz uyqu",
 };
@@ -54,7 +54,7 @@ export function ActiveSleepCard({ session, targetWake, onWoke }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-small text-[var(--c-ink2)] text-label">UYQU BOSHLANDI</p>
-        <p className="text-h3 text-[var(--c-soft-white)]">{fmtTime(session.startedAt)} · {fmtDuration(elapsed)} o'tdi</p>
+        <p className="text-h3 text-[var(--c-soft-white)]">{fmtTime(session.startedAt)} · {fmtDuration(elapsed)} o'apos;tdi</p>
       </div>
       <button onClick={onWoke} className="btn btn-lamp btn-sm flex-shrink-0">
         <Sun size={16} /> Uyg&apos;ondim
@@ -89,7 +89,7 @@ export function SleepHistory({ sessions, targetWake, onChanged }: {
   }
 
   if (sessions.length === 0) return (
-    <p className="text-small text-[var(--c-ink2)] text-center py-6">Hali uyqu sessiyalari yo'q</p>
+    <p className="text-small text-[var(--c-ink2)] text-center py-6">Hali uyqu sessiyalari yo'apos;q</p>
   );
 
   return (

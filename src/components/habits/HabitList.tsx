@@ -37,7 +37,7 @@ function HabitModal({ open, onClose, habit, profileId, onSaved }: {
     <Modal open={open} onClose={onClose} title={habit ? "Odatni tahrirlash" : "Yangi odat"} size="sm">
       <div className="space-y-4">
         <Field label="Nomi" htmlFor="h-title">
-          <input id="h-title" className="input" autoFocus placeholder="Masalan: 10 daqiqa o'qish" value={title} onChange={e => { setTitle(e.target.value); setError(""); }} />
+          <input id="h-title" className="input" autoFocus placeholder="Masalan: 10 daqiqa o'apos;qish" value={title} onChange={e => { setTitle(e.target.value); setError(""); }} />
           {error && <p className="text-small text-[#C65B55] mt-1">{error}</p>}
         </Field>
         <Field label="Takrorlash">
@@ -94,9 +94,9 @@ export function HabitList({ profileId, habits, logs, today, onChanged }: {
     return (
       <EmptyState
         icon={Zap}
-        title="Odatlar yo'q"
-        body="Har kuni bajaradigan odatlarni qo'shing — ular silsilangizni (streak) kuzatib boradi"
-        action={<button onClick={() => setShowAdd(true)} className="btn btn-primary btn-sm">Odat qo'shish</button>}
+        title="Odatlar yo'apos;q"
+        body="Har kuni bajaradigan odatlarni qo'apos;shing — ular silsilangizni (streak) kuzatib boradi"
+        action={<button onClick={() => setShowAdd(true)} className="btn btn-primary btn-sm">Odat qo'apos;shish</button>}
       />
     );
   }

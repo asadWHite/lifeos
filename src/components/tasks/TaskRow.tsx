@@ -79,9 +79,9 @@ export function TaskRow({
   if (confirmDelete) {
     return (
       <div className="px-4 py-3 flex gap-2 items-center justify-between">
-        <p className="text-small text-[var(--c-ink2)]">O'chirilsinmi?</p>
+        <p className="text-small text-[var(--c-ink2)]">O'apos;chirilsinmi?</p>
         <div className="flex gap-2">
-          <button className="btn btn-sm" onClick={remove} style={{ background: "#C65B55", color: "#fff" }}>O'chirish</button>
+          <button className="btn btn-sm" onClick={remove} style={{ background: "#C65B55", color: "#fff" }}>O'apos;chirish</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(false)}>Bekor</button>
         </div>
       </div>

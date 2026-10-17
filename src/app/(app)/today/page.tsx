@@ -2,24 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CalendarPlus, ArrowRight } from "lucide-react";
-import { Storage, generateId, todayDate, fmtTime, type TaskRow, type GoalRow, type SleepSessionRow } from "@/lib/client/storage";
+import { Plus, CalendarPlus, Moon, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { Storage, todayDate, type TaskRow, type GoalRow, type SleepSessionRow } from "@/lib/client/storage";
 import { LampComponent } from "@/components/lamp/Lamp";
 import { ScheduleModal } from "@/components/lamp/ScheduleModal";
 import { TaskRow as TaskRowComponent } from "@/components/tasks/TaskRow";
 import { TaskSheet } from "@/components/tasks/TaskSheet";
-import { EmptyState } from "@/components/ui/index";
 import Link from "next/link";
-
-function greeting(name: string): string {
-  const h = new Date().getHours();
-  const g = h < 5 ? "Yaxshi tun" : h < 12 ? "Xayrli tong" : h < 18 ? "Xayrli kun" : "Xayrli oqshom";
-  return `${g}, ${name}!`;
-}
-
-function fmtDateLong() {
-  return new Date().toLocaleDateString("uz-UZ", { weekday: "long", day: "numeric", month: "long" });
-}
 
 export default function TodayPage() {
   const router = useRouter();
@@ -37,137 +26,127 @@ export default function TodayPage() {
     if (!id) return;
     const p = Storage.getProfile(id);
     if (!p) return;
+    
+    const today = todayDate();
+    const allTasks = Storage.getTasks().filter(t => t.profileId === id && t.dueDate === today);
+    const allGoals = Storage.getGoals().filter(g => g.profileId === id && g.status === "active");
+    const allSleeps = Storage.getSleeps().filter(s => s.profileId === id && s.endedAt).sort((a,b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+
     setPid(id);
     setProfile(p);
-    const today = todayDate();
-    setTasks(Storage.getTasks().filter(t => t.profileId === id && t.dueDate === today));
-    setGoals(Storage.getGoals().filter(g => g.profileId === id && g.status === "active"));
-    const sleeps = Storage.getSleeps().filter(s => s.profileId === id && s.endedAt).sort((a,b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-    setLastSleep(sleeps[0] ?? null);
+    setTasks(allTasks);
+    setGoals(allGoals);
+    setLastSleep(allSleeps[0] ?? null);
   }, []);
 
   useEffect(() => {
     setMounted(true);
     const id = Storage.getCurrentProfileId();
     if (!id || !Storage.getProfile(id)) { router.replace("/welcome"); return; }
-    if (!Storage.getProfile(id)!.onboardingCompleted) { router.replace("/onboarding"); return; }
     reload();
   }, [router, reload]);
 
   if (!mounted || !profile) return null;
 
-  const openTasks  = tasks.filter(t => t.status !== "done");
-  const doneTasks  = tasks.filter(t => t.status === "done");
-  const today = todayDate();
+  const openTasks = tasks.filter(t => t.status !== "done");
 
   return (
-    <div className="min-h-dvh" style={{ background: "linear-gradient(180deg, #151B23 0%, #202833 40%, var(--c-bg) 70%)" }}>
-      {/* ── Header ─────────────────────────── */}
-      <div className="px-5 pt-12 pb-4">
-        <p className="text-small text-[#ADA996] capitalize">{fmtDateLong()}</p>
-        <h1 className="text-h1 text-[#F2F2F2] mt-1">{greeting(profile.name.split(" ")[0])}</h1>
-      </div>
-
-      {/* ── Lamp scene ──────────────────────── */}
-      <div className="px-4 py-4 flex flex-col items-center">
-        {pid && <LampComponent profileId={pid} />}
-        <button
-          onClick={() => setShowSchedule(true)}
-          className="mt-4 flex items-center gap-2 text-small text-[#ADA996] hover:text-[#FF633C] transition-colors"
-        >
-          <CalendarPlus size={15} /> Lamp rejasi qo&apos;shish
-        </button>
-      </div>
-
-      {/* ── Content cards ───────────────────── */}
-      <div className="px-4 space-y-4 pb-6">
-        {/* Sleep summary */}
-        {lastSleep && (
-          <Link href="/sleep" className="card flex items-center justify-between hover:opacity-80 transition-opacity">
+    <div className="min-h-screen pb-24 overflow-x-hidden bg-[var(--c-bg)]">
+      {/* ── Immersive Lamp Scene (Strict Reference Match) ── */}
+      <section className="px-4 pt-4">
+        <div className="lamp-immersive-scene overflow-hidden p-6 sm:p-12 relative flex flex-col items-center min-h-[460px]">
+          <header className="w-full flex justify-between items-start mb-4 z-10">
             <div>
-              <p className="text-label text-[var(--c-ink2)] mb-0.5">KECHA UYQU</p>
-              <p className="text-h3">
-                {(() => {
-                  const m = lastSleep.durationMinutes ?? 0;
-                  const h = Math.floor(m / 60); const min = m % 60;
-                  return h > 0 ? `${h}h ${min}m` : `${min}m`;
-                })()}
-              </p>
+              <p className="text-label text-brand-silver/50 tracking-widest mb-1 uppercase">LifeOS</p>
+              <h1 className="text-h1 text-white">Xayrli kun, {profile.name.split(" ")[0]}</h1>
             </div>
-            <div className="flex items-center gap-2 text-[var(--c-ink2)]">
-              <span className="text-small">Ko&apos;proq</span>
-              <ArrowRight size={15} />
-            </div>
-          </Link>
-        )}
-
-        {/* Today's tasks */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-h3">Bugungi vazifalar</h2>
-              {doneTasks.length > 0 && (
-                <p className="text-small text-[var(--c-ink2)]">{doneTasks.length}/{tasks.length} bajarildi</p>
-              )}
-            </div>
-            <button onClick={() => setShowTask(true)} className="btn btn-sm btn-ghost">
-              <Plus size={16} /> Qo&apos;shish
+            <button
+              onClick={() => setShowSchedule(true)}
+              className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all shadow-lg"
+            >
+              <CalendarPlus size={20} />
             </button>
-          </div>
+          </header>
 
-          {openTasks.length === 0 && doneTasks.length === 0 && (
-            <EmptyState
-              icon={Plus}
-              title="Bugungi reja bo'sh"
-              body="Vazifa qo'shing va kunni rejalashtiring"
-              action={<button onClick={() => setShowTask(true)} className="btn btn-primary btn-sm">Vazifa qo&apos;shish</button>}
-            />
-          )}
-
-          <div className="-mx-4">
-            {openTasks.map(t => (
-              <TaskRowComponent key={t.id} task={t} onChanged={reload} />
-            ))}
-            {doneTasks.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-[var(--c-border)]">
-                {doneTasks.map(t => (
-                  <TaskRowComponent key={t.id} task={t} onChanged={reload} />
-                ))}
-              </div>
-            )}
+          <div className="w-full max-w-[400px] flex justify-center">
+            {pid && <LampComponent profileId={pid} />}
           </div>
         </div>
+      </section>
 
-        {/* Goals quick view */}
-        {goals.length > 0 && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-h3">Faol maqsadlar</h2>
-              <Link href="/progress" className="text-small text-[#FF633C]">Hammasi</Link>
+      {/* ── Content Grid (Elegant Greige Aesthetic) ── */}
+      <section className="px-4 mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        
+        <div className="greige-panel p-8 flex flex-col justify-between min-h-[340px] shadow-sm">
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-h2 text-midnight">Bugungi Reja</h2>
+              <button onClick={() => setShowTask(true)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-midnight shadow-md">
+                <Plus size={20} />
+              </button>
             </div>
-            <div className="space-y-3">
-              {goals.slice(0, 3).map(g => {
-                const pct = g.metricTarget ? Math.round((g.metricProgress / g.metricTarget) * 100) : null;
-                return (
-                  <div key={g.id}>
-                    <div className="flex justify-between mb-1">
-                      <p className="text-body font-medium">{g.title}</p>
-                      {pct !== null && <p className="text-small text-[var(--c-ink2)]">{pct}%</p>}
-                    </div>
-                    {pct !== null && (
-                      <div className="h-1.5 rounded-full bg-[var(--c-surface2)] overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "#FF633C" }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            
+            <div className="space-y-1">
+              {openTasks.length > 0 ? (
+                openTasks.slice(0, 5).map(t => (
+                  <TaskRowComponent key={t.id} task={t} onChanged={reload} />
+                ))
+              ) : (
+                <div className="py-12 text-center opacity-40">
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-midnight" />
+                  <p className="text-small text-midnight font-medium">Barcha vazifalar bajarildi</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+          
+          <Link href="/plan" className="text-label text-midnight font-bold flex items-center gap-2 mt-8 hover:gap-3 transition-all border-t border-midnight/10 pt-4 uppercase tracking-wider">
+            Rejani ko'rish <ArrowUpRight size={14} />
+          </Link>
+        </div>
 
-      {/* Modals */}
+        <div className="space-y-6">
+          <Link href="/sleep" className="card bg-white border-none p-8 flex flex-col justify-between group min-h-[160px] shadow-sm hover:shadow-md transition-all">
+            <div className="flex justify-between">
+              <Moon size={24} className="text-greige" />
+              <div className="text-right">
+                <p className="text-label text-greige mb-1 uppercase tracking-widest">Uyqu</p>
+                <p className="text-h2 text-midnight">
+                  {lastSleep ? `${Math.floor(lastSleep.durationMinutes! / 60)}h ${lastSleep.durationMinutes! % 60}m` : "—"}
+                </p>
+              </div>
+            </div>
+            <p className="text-small text-muted mt-4 group-hover:text-midnight transition-colors italic">
+              Uyqu tahlili va trendlar &rarr;
+            </p>
+          </Link>
+
+          <div className="card bg-white border-none p-8 min-h-[160px] shadow-sm">
+            <h3 className="text-label text-greige mb-6 uppercase tracking-widest">Maqsadlar</h3>
+            <div className="space-y-5">
+              {goals.length > 0 ? (
+                goals.slice(0, 2).map(g => {
+                  const pct = g.metricTarget ? Math.round((g.metricProgress / g.metricTarget) * 100) : 0;
+                  return (
+                    <div key={g.id}>
+                      <div className="flex justify-between text-small font-bold text-midnight mb-2">
+                        <span>{g.title}</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="h-1.5 bg-ivory rounded-full overflow-hidden">
+                        <div className="h-full bg-midnight transition-all duration-1000" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-small text-muted italic">Hali maqsadlar yo'q</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {pid && (
         <ScheduleModal
           open={showSchedule}
@@ -177,7 +156,12 @@ export default function TodayPage() {
           onSaved={reload}
         />
       )}
-      <TaskSheet open={showTask} onClose={() => setShowTask(false)} onAdded={reload} goals={goals} />
+      <TaskSheet 
+        open={showTask} 
+        onClose={() => setShowTask(false)} 
+        onAdded={reload} 
+        goals={goals.map(g => ({ id: g.id, title: g.title }))} 
+      />
     </div>
   );
 }
