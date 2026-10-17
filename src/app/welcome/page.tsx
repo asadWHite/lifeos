@@ -1,138 +1,120 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Storage } from "@/lib/client/storage";
-import { Logo } from "@/components/Branding";
-import { ArrowRight, CheckCircle2, Moon, Target, LayoutDashboard } from "lucide-react";
+import { ArrowRight, Sun, Moon, Target } from "lucide-react";
+import { Storage, generateId } from "@/lib/client/storage";
+import { Spinner } from "@/components/ui/index";
 
-export default function WelcomePage() {
+export default function Welcome() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string }>>([]);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setMounted(true);
+    // Try Telegram user
+    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
+      const u = (window as any).Telegram.WebApp.initDataUnsafe.user;
+      setName(u.first_name + (u.last_name ? ` ${u.last_name}` : ""));
+    }
     const pid = Storage.getCurrentProfileId();
-    const existing = Storage.getProfiles();
-    
-    // Check if Telegram user is available
-    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp) {
-      const tg = (window as any).Telegram.WebApp;
-      if (tg.initDataUnsafe?.user) {
-        const user = tg.initDataUnsafe.user;
-        setName(user.first_name + (user.last_name ? ` ${user.last_name}` : ""));
-      }
+    const profs = Storage.getProfiles();
+    if (pid) {
+      const p = profs.find(x => x.id === pid);
+      if (p?.onboardingCompleted) { router.replace("/today"); return; }
     }
-
-    if (pid && existing.find(p => p.id === pid)) {
-      const profile = existing.find(p => p.id === pid);
-      if (profile?.onboardingCompleted) {
-        router.replace("/home");
-      }
-    }
+    setProfiles(profs.map(p => ({ id: p.id, name: p.name })));
   }, [router]);
 
-  const handleStart = () => {
-    if (!name.trim()) return;
+  function create() {
+    const n = name.trim();
+    if (!n) { setError("Ismingizni kiriting"); return; }
     setLoading(true);
-    
-    const pid = Storage.getCurrentProfileId() || Math.random().toString(36).substring(2, 15);
-    const p = {
-      id: pid,
-      name: name.trim(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-      onboardingCompleted: false,
-      createdAt: new Date()
-    };
-    
-    // @ts-ignore
-    Storage.saveProfile(p);
-    Storage.setCurrentProfileId(p.id);
+    const id = generateId();
+    Storage.saveProfile({ id, name: n, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", onboardingCompleted: false, createdAt: new Date().toISOString() });
+    Storage.setCurrentProfileId(id);
     router.replace("/onboarding");
-  };
+  }
+
+  function open(id: string) {
+    Storage.setCurrentProfileId(id);
+    router.replace("/today");
+  }
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-brand-dark overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-silver rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-smoky rounded-full blur-[120px]" />
+    <div className="min-h-dvh flex flex-col" style={{ background: "linear-gradient(160deg, #151B23 0%, #202833 55%, #2B3440 100%)" }}>
+      {/* hero */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+        {/* lamp icon */}
+        <div className="relative w-24 h-24 mx-auto mb-8">
+          <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,99,60,0.25) 0%, transparent 70%)" }} />
+          <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: "rgba(255,99,60,0.12)", border: "1px solid rgba(255,99,60,0.2)" }}>
+            <div style={{ fontSize: 42 }}>🕯️</div>
+          </div>
+        </div>
+
+        <h1 className="text-display text-[#F2F2F2] mb-4">LifeOS</h1>
+        <p className="text-body text-[#ADA996] max-w-xs leading-relaxed mb-12">
+          Maqsadlaringizni belgilang. Lamp ularni yoritadi. Hayotingizni tartibga soling.
+        </p>
+
+        <div className="grid grid-cols-3 gap-4 w-full max-w-sm mb-12">
+          {[
+            { icon: Target, label: "Maqsadlar" },
+            { icon: Sun, label: "Rejalash" },
+            { icon: Moon, label: "Uyqu" },
+          ].map(f => (
+            <div key={f.label} className="flex flex-col items-center gap-2 p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <f.icon size={22} style={{ color: "#FF633C" }} />
+              <span className="text-small text-[#ADA996]">{f.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 max-w-lg mx-auto w-full">
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8 }}
-          className="text-center"
-        >
-          <Logo size={120} className="mx-auto mb-8" />
-          
-          <h1 className="text-4xl font-bold text-brand-light tracking-tight mb-4 leading-tight">
-            Hayotingizni, <br/>
-            <span className="text-brand-silver italic">tartibga soling.</span>
-          </h1>
-          
-          <p className="text-brand-silver/80 text-lg mb-12 max-w-[280px] mx-auto leading-relaxed">
-            Maqsadlar, vazifalar va uyqu rejimini boshqarish uchun shaxsiy tizim.
-          </p>
-        </motion.div>
-
-        <motion.div 
-          className="w-full space-y-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-        >
-          <div className="grid grid-cols-1 gap-4 mb-8">
-            {[
-              { icon: LayoutDashboard, title: "Aqlli Dashboard", desc: "Sizga moslashtirilgan kunlik ko'rinish" },
-              { icon: Moon, title: "Uyqu Nazorati", desc: "Sifatli uyqu va tartibli rejim" },
-              { icon: Target, title: "Haqiqiy Maqsadlar", desc: "Natijaga asoslangan taraqqiyot" }
-            ].map((f, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 glass-panel">
-                <div className="w-10 h-10 rounded-xl bg-brand-silver/20 flex items-center justify-center text-brand-silver">
-                  <f.icon size={20} />
+      {/* form */}
+      <div className="px-6 pb-8 space-y-4 max-w-sm mx-auto w-full">
+        {profiles.length > 0 && (
+          <div className="space-y-2 mb-2">
+            {profiles.map(p => (
+              <button key={p.id} onClick={() => open(p.id)} className="w-full flex items-center gap-3 p-4 rounded-2xl text-left hover:opacity-80 transition-opacity" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-[#F2F2F2] font-bold" style={{ background: "#FF633C" }}>
+                  {p.name[0]?.toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="text-brand-light font-medium text-sm">{f.title}</h3>
-                  <p className="text-brand-silver/60 text-xs">{f.desc}</p>
+                <div className="flex-1">
+                  <p className="text-[#F2F2F2] font-semibold">{p.name}</p>
+                  <p className="text-small text-[#ADA996]">Davom etish</p>
                 </div>
-              </div>
+                <ArrowRight size={18} style={{ color: "#ADA996" }} />
+              </button>
             ))}
+            <div className="divider my-4 opacity-20" />
           </div>
-
-          <div className="space-y-4">
-            <div className="relative">
-              <input 
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ismingiz yoki nikingiz"
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-brand-light placeholder:text-brand-silver/40 focus:outline-none focus:border-brand-silver/50 transition-colors"
-              />
-            </div>
-
-            <button 
-              onClick={handleStart}
-              disabled={loading || !name.trim()}
-              className="w-full btn-primary h-14 group text-lg"
-            >
-              {loading ? "Yuklanmoqda..." : "Boshlash"}
-              <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        </motion.div>
-
-        <p className="mt-8 text-brand-silver/40 text-xs text-center px-8 leading-relaxed">
-          Tizim sizning ma'lumotlaringizni xavfsiz va shaxsiy saqlaydi.
-        </p>
-      </main>
+        )}
+        <input
+          className="w-full text-[#F2F2F2] placeholder:text-[#ADA996] rounded-2xl px-4 py-3 outline-none"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", fontSize: 16 }}
+          placeholder="Ismingiz yoki laqabingiz"
+          value={name}
+          onChange={e => { setName(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && create()}
+          maxLength={40}
+        />
+        {error && <p className="text-small text-[#C65B55]">{error}</p>}
+        <button
+          onClick={create}
+          disabled={loading || !name.trim()}
+          className="w-full h-14 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-base transition-opacity disabled:opacity-50"
+          style={{ background: loading ? "#666" : "#FF633C", boxShadow: "0 4px 20px rgba(255,99,60,0.35)" }}
+        >
+          {loading ? <Spinner size={20} /> : <>Boshlash <ArrowRight size={18} /></>}
+        </button>
+      </div>
     </div>
   );
 }

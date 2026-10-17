@@ -1,191 +1,140 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Check, Pencil, Sparkles, Sprout, Trash2 } from "lucide-react";
-import { Storage } from "@/lib/client/storage";
-import { ConfirmInline, FieldError, Spinner } from "@/components/ui";
-import { formatDuration, friendlyDue } from "@/lib/time";
+import { useState } from "react";
+import { Check, Pencil, Trash2, ChevronDown, ChevronUp, Clock, Flag } from "lucide-react";
+import { Storage, generateId, todayDate, fmtDuration, type TaskRow } from "@/lib/client/storage";
 
-export type TaskView = {
-  id: string;
-  title: string;
-  notes: string | null;
-  dueDate: string | null;
-  priority: string;
-  durationMinutes: number | null;
-  status: string;
-  source: string;
-  goalId: string | null;
+const PRIORITY_COLORS: Record<string, string> = {
+  high: "#C65B55",
+  normal: "#C8943E",
+  low: "#3F8065",
 };
+
+function relativeDate(dateStr: string | null, today: string): string {
+  if (!dateStr) return "";
+  if (dateStr === today) return "Bugun";
+  const diff = Math.round((new Date(dateStr).getTime() - new Date(today).getTime()) / 86400000);
+  if (diff === 1) return "Ertaga";
+  if (diff === -1) return "Kecha";
+  if (diff < -1) return `${-diff}k oldin`;
+  if (diff > 1) return `${diff}k keyin`;
+  return dateStr;
+}
 
 export function TaskRow({
   task,
-  todayIso,
+  onChanged,
   goalTitle,
 }: {
-  task: TaskView;
-  todayIso: string;
-  goalTitle?: string | null;
+  task: TaskRow;
+  onChanged: () => void;
+  goalTitle?: string;
 }) {
-  const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
-  const [done, setDone] = useState(task.status === "done");
-  const [title, setTitle] = useState(task.title);
-  const [dueDate, setDueDate] = useState(task.dueDate ?? "");
-  const [priority, setPriority] = useState<string>(task.priority);
-  const [error, setError] = useState("");
-  const [pending, start] = useTransition();
-
-  const overdue = !done && task.dueDate != null && task.dueDate < todayIso;
-  const dueLabel = friendlyDue(task.dueDate, todayIso);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const today = todayDate();
 
   function toggle() {
-    const next = !done;
-    setDone(next); // optimistic
-    start(() => {
-      const t = Storage.getTasks().find(x => x.id === task.id);
-      if (t) {
-        Storage.saveTask({ ...t, status: next ? "done" : "todo", completedAt: next ? new Date() : null });
-        window.location.reload();
-      }
+    const now = new Date().toISOString();
+    Storage.saveTask({
+      ...task,
+      status: task.status === "done" ? "todo" : "done",
+      completedAt: task.status === "done" ? null : now,
     });
+    onChanged();
   }
 
-  function save() {
-    if (!title.trim()) {
-      setError("Title can't be empty.");
-      return;
-    }
-    start(() => {
-      const t = Storage.getTasks().find(x => x.id === task.id);
-      if (t) {
-        Storage.saveTask({ ...t, title: title.trim(), dueDate: dueDate || null, priority: priority as "low" | "normal" | "high" });
-        setMode("view");
-        window.location.reload();
-      }
-    });
+  function saveEdit() {
+    if (!editTitle.trim()) return;
+    Storage.saveTask({ ...task, title: editTitle.trim() });
+    setEditing(false);
+    onChanged();
   }
 
   function remove() {
-    start(() => {
-      Storage.deleteTask(task.id);
-      setMode("view");
-      window.location.reload();
-    });
+    Storage.deleteTask(task.id);
+    onChanged();
   }
 
-  if (mode === "delete") {
+  const done = task.status === "done";
+  const overdue = !done && task.dueDate && task.dueDate < today;
+
+  if (editing) {
     return (
-      <div className="flex items-center justify-between gap-3 py-3 min-h-12">
-        <span className="truncate text-[14.5px] text-ink2 line-through">{task.title}</span>
-        <ConfirmInline onConfirm={remove} onCancel={() => setMode("view")} busy={pending} />
+      <div className="px-4 py-3 flex gap-2 items-center bg-[var(--c-surface2)] rounded-xl">
+        <input
+          autoFocus
+          className="input flex-1 py-2 text-sm"
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditing(false); }}
+        />
+        <button className="btn btn-sm btn-primary" onClick={saveEdit}>Saqlash</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => setEditing(false)}>Bekor</button>
       </div>
     );
   }
 
-  if (mode === "edit") {
+  if (confirmDelete) {
     return (
-      <div className="py-3 space-y-3">
-        <input
-          className="input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && save()}
-          aria-label="Task title"
-          maxLength={160}
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="date"
-            className="input max-w-44"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            aria-label="Due date"
-          />
-          <div className="flex gap-1.5" role="group" aria-label="Priority">
-            {(["low", "normal", "high"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`chip !px-3 !py-1.5 text-xs capitalize`}
-                data-selected={priority === p}
-                onClick={() => setPriority(p)}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="chip !px-3 !py-1.5 text-xs"
-              data-selected={dueDate === ""}
-              onClick={() => setDueDate("")}
-            >
-              No date
-            </button>
-          </div>
-        </div>
-        {error && <FieldError>{error}</FieldError>}
+      <div className="px-4 py-3 flex gap-2 items-center justify-between">
+        <p className="text-small text-[var(--c-ink2)]">O'chirilsinmi?</p>
         <div className="flex gap-2">
-          <button className="btn btn-sm btn-primary" onClick={save} disabled={pending}>
-            {pending ? <Spinner size={13} /> : "Save"}
-          </button>
-          <button className="btn btn-sm btn-ghost" onClick={() => { setMode("view"); setError(""); }} disabled={pending}>
-            Cancel
-          </button>
+          <button className="btn btn-sm" onClick={remove} style={{ background: "#C65B55", color: "#fff" }}>O'chirish</button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(false)}>Bekor</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="group flex items-start gap-3 py-2.5 min-h-12">
+    <div className={`flex items-start gap-3 px-4 py-3 group rounded-xl transition-colors hover:bg-[var(--c-surface2)] ${done ? "opacity-50" : ""}`}>
+      {/* checkbox */}
       <button
-        type="button"
         onClick={toggle}
-        aria-pressed={done}
-        aria-label={done ? `Mark “${task.title}” as not done` : `Mark “${task.title}” as done`}
-        className={`mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all duration-150 ${
-          done
-            ? "border-accent bg-accent text-white"
-            : "border-line-strong hover:border-accent"
-        } ${task.priority === "high" && !done ? "border-red/60" : ""}`}
+        aria-label={done ? "Bajarilmagan deb belgilash" : "Bajarildi deb belgilash"}
+        className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+          done ? "bg-[var(--c-ink)] border-[var(--c-ink)]" : "border-[var(--c-border)]"
+        }`}
       >
-        {done && <Check size={13} strokeWidth={3} />}
+        {done && <Check size={11} strokeWidth={3} className="text-[var(--c-bg)]" />}
       </button>
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-[14.5px] font-medium leading-snug transition-colors ${
-            done ? "text-ink3 line-through" : "text-ink"
-          }`}
-        >
+
+      {/* content */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-body leading-snug ${done ? "line-through text-[var(--c-ink2)]" : ""}`}>
           {task.title}
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-ink3">
-          {dueLabel && (
-            <span className={overdue ? "font-semibold text-red" : ""}>{dueLabel}</span>
-          )}
-          {task.priority === "high" && !done && <span className="font-semibold text-red">High priority</span>}
-          {task.priority === "low" && !done && <span>Low</span>}
-          {task.durationMinutes != null && <span>{formatDuration(task.durationMinutes)}</span>}
-          {goalTitle && <span className="truncate">→ {goalTitle}</span>}
-          {task.source === "lifeos" && (
-            <span className="inline-flex items-center gap-1 text-accent-ink">
-              <Sprout size={11} /> Suggested by LIFEOS
+        <div className="flex flex-wrap gap-2 mt-1">
+          {task.dueDate && (
+            <span className={`text-label ${overdue ? "text-[#C65B55]" : "text-[var(--c-ink2)]"}`}>
+              {relativeDate(task.dueDate, today)}
             </span>
           )}
-          {task.source === "assistant" && (
-            <span className="inline-flex items-center gap-1 text-info">
-              <Sparkles size={11} /> From assistant
+          {task.durationMinutes && (
+            <span className="text-label text-[var(--c-ink2)] flex items-center gap-0.5">
+              <Clock size={10} /> {fmtDuration(task.durationMinutes)}
             </span>
+          )}
+          {task.priority !== "normal" && (
+            <span className="text-label" style={{ color: PRIORITY_COLORS[task.priority] }}>
+              <Flag size={10} className="inline mr-0.5" />{task.priority === "high" ? "Muhim" : "Oddiy"}
+            </span>
+          )}
+          {goalTitle && (
+            <span className="text-label text-[var(--c-ink2)] opacity-70">→ {goalTitle}</span>
           )}
         </div>
-        {error && <FieldError>{error}</FieldError>}
       </div>
-      <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100">
-        <button className="icon-btn" onClick={() => setMode("edit")} aria-label={`Edit “${task.title}”`}>
-          <Pencil size={15} />
+
+      {/* actions */}
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <button onClick={() => setEditing(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[var(--c-ink2)]">
+          <Pencil size={13} />
         </button>
-        <button className="icon-btn hover:!text-red" onClick={() => setMode("delete")} aria-label={`Delete “${task.title}”`}>
-          <Trash2 size={15} />
+        <button onClick={() => setConfirmDelete(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[#C65B55]">
+          <Trash2 size={13} />
         </button>
       </div>
     </div>

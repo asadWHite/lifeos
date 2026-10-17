@@ -1,158 +1,205 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Moon, Clock, History, AlertCircle, CheckCircle2, Sliders } from "lucide-react";
-import { Storage } from "@/lib/client/storage";
-import { statusForSession, STATUS_UI } from "@/lib/sleep";
-import { todayInTz, formatDuration } from "@/lib/time";
-import { SleepActions } from "@/components/sleep/SleepControls";
-import { SectionHeader } from "@/components/ui";
-import { motion } from "framer-motion";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Moon, Sun, Settings2 } from "lucide-react";
+import {
+  Storage, generateId, fmtTime, fmtDuration,
+  type SleepSessionRow, type PreferencesRow
+} from "@/lib/client/storage";
+import { ActiveSleepCard, SleepHistory, sleepStatus } from "@/components/sleep/SleepControls";
+import { Modal, Field, Toggle } from "@/components/ui/index";
+
+function minsElapsed(startISO: string) {
+  return Math.round((Date.now() - new Date(startISO).getTime()) / 60000);
+}
 
 export default function SleepPage() {
-  const [data, setData] = useState<any>(null);
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [pid, setPid] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<PreferencesRow | null>(null);
+  const [sessions, setSessions] = useState<SleepSessionRow[]>([]);
+  const [active, setActive] = useState<SleepSessionRow | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [editWake, setEditWake] = useState("07:00");
+  const [editBed, setEditBed] = useState("23:00");
+  const [editTarget, setEditTarget] = useState(480);
 
-  useEffect(() => {
-    const pid = Storage.getCurrentProfileId();
-    if (!pid) return;
-    const profile = Storage.getProfile(pid);
-    const prefs = Storage.getPrefs(pid);
-    if (!profile || !prefs) return;
-
-    const tz = profile.timezone;
-    const today = todayInTz(tz);
-    const allSleeps = Storage.getSleeps().filter(s => s.profileId === pid).sort((a,b) => +new Date(b.startedAt) - +new Date(a.startedAt));
-    const activeSession = allSleeps.find(s => !s.endedAt) || null;
-    const sessions = allSleeps.filter(s => s.endedAt);
-
-    setData({ profile, prefs, tz, today, activeSession, sessions });
+  const reload = useCallback(() => {
+    const id = Storage.getCurrentProfileId();
+    if (!id) return;
+    setPid(id);
+    const p = Storage.getPrefs(id);
+    setPrefs(p);
+    setEditWake(p.wakeTime ?? "07:00");
+    setEditBed(p.bedtime ?? "23:00");
+    setEditTarget(p.sleepTargetMinutes ?? 480);
+    const all = Storage.getSleeps().filter(s => s.profileId === id);
+    const act = all.find(s => !s.endedAt) ?? null;
+    setActive(act);
+    setSessions(all.filter(s => s.endedAt).sort((a,b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()));
   }, []);
 
-  if (!data) return null;
-  const { profile, prefs, tz, today, activeSession, sessions } = data;
+  useEffect(() => {
+    setMounted(true);
+    const id = Storage.getCurrentProfileId();
+    if (!id || !Storage.getProfile(id)) { router.replace("/welcome"); return; }
+    reload();
+  }, [router, reload]);
+
+  function startSleep() {
+    if (!pid || active) return;
+    Storage.saveSleep({ id: generateId(), profileId: pid, startedAt: new Date().toISOString(), endedAt: null, durationMinutes: null, manual: false, createdAt: new Date().toISOString() });
+    reload();
+  }
+
+  function wakeUp() {
+    if (!pid || !active) return;
+    const endedAt = new Date().toISOString();
+    const dur = Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(active.startedAt).getTime()) / 60000));
+    Storage.saveSleep({ ...active, endedAt, durationMinutes: dur });
+    reload();
+  }
+
+  function saveSettings() {
+    if (!pid) return;
+    const p = Storage.getPrefs(pid);
+    Storage.savePrefs({ ...p, wakeTime: editWake, bedtime: editBed, sleepTargetMinutes: editTarget, updatedAt: new Date().toISOString() });
+    setShowSettings(false);
+    reload();
+  }
+
+  if (!mounted || !prefs) return null;
+
+  // Stats
+  const recentSessions = sessions.slice(0, 7);
+  const avg = recentSessions.length > 0 ? Math.round(recentSessions.reduce((a,s) => a+(s.durationMinutes??0), 0) / recentSessions.length) : null;
+  const lastSession = sessions[0];
+  const lastStatus = lastSession?.durationMinutes && prefs.wakeTime ? sleepStatus(lastSession.durationMinutes, prefs.sleepTargetMinutes ?? 480, lastSession.endedAt!, prefs.wakeTime) : null;
+  const statusColors = { green: "#3F8065", yellow: "#C8943E", red: "#C65B55" };
 
   return (
-    <div className="p-6 space-y-8 animate-fade pb-24">
-      <header className="flex justify-between items-center">
+    <div className="min-h-dvh bg-[var(--c-bg)] page-enter">
+      {/* Header */}
+      <div className="px-5 pt-12 pb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-ink tracking-tight italic">Uyqu</h1>
-          <p className="text-ink-muted text-sm mt-1">Rejim va sifat nazorati.</p>
+          <p className="text-label text-[var(--c-ink2)]">UYQU</p>
+          <h1 className="text-h1 mt-1">Uyqu nazorati</h1>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-white border border-border flex items-center justify-center text-ink-muted">
-          <Sliders size={20} />
-        </div>
-      </header>
-
-      {/* Main Sleep Control */}
-      <section className="metallic-card bg-brand-dark p-8 border-white/5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 text-white/5">
-          <Moon size={160} />
-        </div>
-        
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-3xl bg-brand-silver/10 flex items-center justify-center text-brand-silver mb-6 shadow-lg">
-            <Moon size={32} />
-          </div>
-          
-          <h2 className="text-2xl font-bold text-brand-light mb-2">
-            {activeSession ? "Hozir uxlash vaqti" : "Uyquni boshlang"}
-          </h2>
-          <p className="text-brand-silver/60 text-sm mb-8 max-w-[200px]">
-            {activeSession 
-              ? `Boshlangan vaqt: ${new Date(activeSession.startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` 
-              : `Maqsad: ${prefs.bedtime || 'belgilanmagan'}`}
-          </p>
-
-          <SleepActions active={activeSession ? { id: activeSession.id, startedAt: activeSession.startedAt } : null} timezone={tz} targetMinutes={prefs.sleepTargetMinutes} bedtimeSuggestion={null} />
-        </div>
-      </section>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="metallic-card p-5 bg-surface">
-          <p className="text-[10px] font-black text-ink-muted uppercase tracking-widest mb-1">Maqsad</p>
-          <div className="flex items-center gap-2">
-            <Clock size={16} className="text-brand-silver" />
-            <span className="text-lg font-bold text-ink">{prefs.wakeTime || "—"}</span>
-          </div>
-        </div>
-        <div className="metallic-card p-5 bg-surface">
-          <p className="text-[10px] font-black text-ink-muted uppercase tracking-widest mb-1">Davomiylik</p>
-          <div className="flex items-center gap-2">
-            <History size={16} className="text-brand-silver" />
-            <span className="text-lg font-bold text-ink">{formatDuration(prefs.sleepTargetMinutes || 480)}</span>
-          </div>
-        </div>
+        <button onClick={() => setShowSettings(true)} className="btn btn-ghost btn-sm">
+          <Settings2 size={16} /> Sozlash
+        </button>
       </div>
 
-      {/* Status Legend */}
-      <section className="space-y-4">
-        <h3 className="text-xs font-black text-ink-muted uppercase tracking-[0.2em] px-1">Holat qoidalari</h3>
-        <div className="grid grid-cols-1 gap-2">
-          {[
-            { color: "bg-emerald-500", title: "O'z vaqtida", desc: "Uyg'onish maqsadga mos (+/- 30 daqiqa)" },
-            { color: "bg-amber-500", title: "Biroz kechikish", desc: "30-90 daqiqa kech uyg'onish" },
-            { color: "bg-red-500", title: "Sifatsiz uyqu", desc: "2 soatdan kam davomiylik yoki juda kech" }
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 metallic-card bg-surface/50 border-none shadow-none">
-              <div className={`w-2 h-2 rounded-full ${item.color}`} />
-              <div>
-                <p className="text-xs font-bold text-ink">{item.title}</p>
-                <p className="text-[10px] text-ink-muted leading-none mt-1">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="px-4 space-y-4">
+        {/* Active session */}
+        {active
+          ? <ActiveSleepCard session={active} targetWake={prefs.wakeTime} onWoke={wakeUp} />
+          : (
+            <div className="card-dark rounded-2xl p-6 space-y-6" style={{ background: "#202833" }}>
+              {/* Last night summary */}
+              {lastSession && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-label text-[#ADA996] mb-1">KECHA UYQU</p>
+                    <p className="text-display text-[#F2F2F2]" style={{ fontSize: "2.5rem" }}>
+                      {fmtDuration(lastSession.durationMinutes)}
+                    </p>
+                    {lastStatus && (
+                      <span className="badge mt-1 inline-block" style={{ background: `${statusColors[lastStatus]}22`, color: statusColors[lastStatus] }}>
+                        {lastStatus === "green" ? "O'z vaqtida" : lastStatus === "yellow" ? "Biroz kech" : "Sifatsiz"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-small text-[#ADA996]">Maqsad</p>
+                    <p className="text-h2 text-[#F2F2F2]">{fmtDuration(prefs.sleepTargetMinutes)}</p>
+                  </div>
+                </div>
+              )}
 
-      {/* History */}
-      <section className="space-y-4 pb-8">
-        <h3 className="text-xl font-bold text-ink tracking-tight italic flex items-center gap-2 px-1">
-          <History size={20} className="text-brand-silver" />
-          Tarix
-        </h3>
-        <div className="metallic-card bg-surface overflow-hidden">
-          {sessions.length > 0 ? (
-            <div className="divide-y divide-border">
-              {sessions.map((s: any) => {
-                const wakeTime = new Date(s.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                const status = statusForSession(s.durationMinutes, wakeTime, prefs.wakeTime);
-                const config = (STATUS_UI as any)[status || 'met'];
-                
+              {/* Sleep schedule */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <p className="text-label text-[#ADA996] mb-1">UXLASH</p>
+                  <p className="text-h2 text-[#F2F2F2]">{prefs.bedtime ?? "—"}</p>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <p className="text-label text-[#ADA996] mb-1">UYG'ONISH</p>
+                  <p className="text-h2 text-[#F2F2F2]">{prefs.wakeTime ?? "—"}</p>
+                </div>
+              </div>
+
+              {/* Start button */}
+              <button onClick={startSleep} className="w-full h-14 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-base" style={{ background: "#202833", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <Moon size={20} style={{ color: "#FF633C" }} />
+                Uyquni boshlash
+              </button>
+            </div>
+          )
+        }
+
+        {/* 7-day bar chart */}
+        {sessions.length > 0 && (
+          <div className="card">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-h3">7 kunlik trend</h2>
+              {avg && <p className="text-small text-[var(--c-ink2)]">O'rtacha: {fmtDuration(avg)}</p>}
+            </div>
+            <div className="flex items-end gap-2 h-20">
+              {Array.from({ length: 7 }).map((_, i) => {
+                const dayDate = new Date();
+                dayDate.setDate(dayDate.getDate() - (6 - i));
+                const dayStr = dayDate.toISOString().slice(0,10);
+                const s = sessions.find(x => x.startedAt.slice(0,10) === dayStr);
+                const dur = s?.durationMinutes ?? 0;
+                const maxDur = Math.max(prefs.sleepTargetMinutes ?? 480, ...sessions.map(x => x.durationMinutes ?? 0));
+                const h = dur > 0 ? Math.max(8, (dur / maxDur) * 64) : 4;
+                const st = dur > 0 && prefs.wakeTime && s?.endedAt ? sleepStatus(dur, prefs.sleepTargetMinutes ?? 480, s.endedAt, prefs.wakeTime) : null;
+                const bg = st === "green" ? "#3F8065" : st === "yellow" ? "#C8943E" : st === "red" ? "#C65B55" : "var(--c-surface2)";
+                const day = dayDate.toLocaleDateString("en-GB", { weekday: "short" });
                 return (
-                  <div key={s.id} className="p-4 flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        status === 'met' ? 'bg-emerald-500/10 text-emerald-500' : 
-                        status === 'short' ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'
-                      }`}>
-                        {status === 'met' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-ink">{new Date(s.startedAt).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' })}</p>
-                        <p className="text-[10px] text-ink-muted uppercase font-bold tracking-tighter">
-                          {new Date(s.startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} — {wakeTime}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black text-ink">{formatDuration(s.durationMinutes)}</p>
-                      <p className="text-[9px] font-black uppercase tracking-tighter" style={{ color: config.tone === 'green' ? '#10b981' : config.tone === 'amber' ? '#f59e0b' : '#ef4444' }}>
-                        {config.label}
-                      </p>
-                    </div>
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full rounded-t-sm transition-all" style={{ height: h, background: bg }} />
+                    <span className="text-label" style={{ fontSize: "9px", color: "var(--c-ink2)" }}>{day}</span>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="p-10 text-center text-ink-muted">
-              <History size={32} className="mx-auto mb-4 opacity-20" />
-              <p className="text-sm font-medium">Hali yozuvlar yo'q</p>
+            <div className="flex gap-4 mt-4 flex-wrap">
+              {[["#3F8065","O'z vaqtida"],["#C8943E","Biroz kech"],["#C65B55","Sifatsiz"]].map(([c,l]) => (
+                <div key={l} className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ background: c }} />
+                  <span className="text-small text-[var(--c-ink2)]">{l}</span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* History */}
+        <div className="card">
+          <h2 className="text-h3 mb-4">Tarix</h2>
+          <SleepHistory sessions={sessions.slice(0,10)} targetWake={prefs.wakeTime} onChanged={reload} />
         </div>
-      </section>
+      </div>
+
+      {/* Settings modal */}
+      <Modal open={showSettings} onClose={() => setShowSettings(false)} title="Uyqu sozlamalari" size="sm">
+        <div className="space-y-4">
+          <Field label="Uyg'onish vaqti" htmlFor="sw-wake">
+            <input id="sw-wake" type="time" className="input" value={editWake} onChange={e => setEditWake(e.target.value)} />
+          </Field>
+          <Field label="Uyqu vaqti" htmlFor="sw-bed">
+            <input id="sw-bed" type="time" className="input" value={editBed} onChange={e => setEditBed(e.target.value)} />
+          </Field>
+          <Field label={`Maqsad: ${fmtDuration(editTarget)}`} htmlFor="sw-target">
+            <input id="sw-target" type="range" min={240} max={720} step={15} value={editTarget} onChange={e => setEditTarget(+e.target.value)} className="w-full accent-[#FF633C]" />
+          </Field>
+          <button onClick={saveSettings} className="btn btn-primary w-full btn-lg">Saqlash</button>
+        </div>
+      </Modal>
     </div>
   );
 }

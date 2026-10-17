@@ -1,205 +1,227 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChartColumn, Minus, TrendingDown, TrendingUp } from "lucide-react";
-import { Storage } from "@/lib/client/storage";
-import { computeGoalProgress } from "@/lib/goals";
-import { statusForSession, STATUS_COPY, weeklySleepStats } from "@/lib/sleep";
-import { addDaysIso, dayPartsInTz, formatDayShort, formatDuration, lastNDays, todayInTz } from "@/lib/time";
-import { EmptyState, ProgressBar, SectionHeader } from "@/components/ui";
+import { useRouter } from "next/navigation";
+import { Plus, Target, Check, Archive, Pencil, Trash2 } from "lucide-react";
+import { Storage, generateId, fmtDuration, type GoalRow, type ScheduledGoalRow } from "@/lib/client/storage";
+import { ProgressRing, Modal, Field, EmptyState } from "@/components/ui/index";
 
-export default function ProgressPage() {
-  const [data, setData] = useState<any>(null);
+/* Goal form */
+function GoalModal({ open, onClose, goal, profileId, onSaved }: {
+  open: boolean; onClose: () => void; goal?: GoalRow; profileId: string; onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(goal?.title ?? "");
+  const [desc, setDesc] = useState(goal?.description ?? "");
+  const [target, setTarget] = useState(goal?.metricTarget ?? "");
+  const [unit, setUnit] = useState(goal?.metricUnit ?? "");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    const pid = Storage.getCurrentProfileId();
-    if (!pid) return;
-    const profile = Storage.getProfile(pid);
-    const prefs = Storage.getPrefs(pid);
-    if (!profile || !prefs) return;
-
-    const tz = profile.timezone;
-    const today = todayInTz(tz);
-    const startIso = addDaysIso(today, -6);
-
-    const allTasks = Storage.getTasks().filter(t => t.profileId === pid);
-    const completed = allTasks.filter(t => t.status === "done" && t.completedAt && new Date(t.completedAt) >= new Date(`${startIso}T00:00:00Z`));
-    
-    const goals = Storage.getGoals().filter(g => g.profileId === pid);
-    const goalRows = goals.map(g => ({ ...g, tasks: allTasks.filter(t => t.goalId === g.id) }));
-    
-    const sessions = Storage.getSleeps().filter(s => s.profileId === pid && s.endedAt).sort((a,b) => +new Date(b.startedAt) - +new Date(a.startedAt)).slice(0,30);
-    const checkins = Storage.getCheckins().filter(c => c.profileId === pid && c.day >= startIso && c.day <= today).sort((a,b) => a.day < b.day ? -1 : 1);
-
-    setData({ profile, prefs, tz, today, completed, allTasks, goalRows, sessions, checkins });
-  }, []);
-
-  if (!data) return null;
-  const { profile, prefs, tz, today, completed, allTasks, goalRows, sessions, checkins } = data;
-  const target = prefs.sleepTargetMinutes;
-
-  const toLocal = (d: Date) => {
-    const p = dayPartsInTz(tz, d);
-    return { minutesAfterMidnight: p.hour * 60 + p.minute, dateIso: p.iso };
-  };
-
-  const week = lastNDays(tz, 7);
-  const perDay: Record<string, number> = Object.fromEntries(week.map((d) => [d, 0]));
-  for (const t of completed) {
-    if (!t.completedAt) continue;
-    const iso = dayPartsInTz(tz, new Date(t.completedAt)).iso;
-    if (iso in perDay) perDay[iso] += 1;
+  function save() {
+    if (!title.trim()) { setError("Maqsad nomini kiriting"); return; }
+    const metricTarget = target !== "" ? Number(target) : null;
+    if (goal) {
+      Storage.saveGoal({ ...goal, title: title.trim(), description: desc.trim() || null, metricTarget, metricUnit: unit.trim() || null });
+    } else {
+      Storage.saveGoal({
+        id: generateId(), profileId, title: title.trim(), description: desc.trim() || null,
+        category: "personal", targetDate: null, status: "active",
+        metricTarget, metricUnit: unit.trim() || null, metricProgress: 0,
+        source: "user", createdAt: new Date().toISOString(),
+      });
+    }
+    onSaved(); onClose();
   }
-  const maxTasks = Math.max(1, ...Object.values(perDay));
-  const weekTotal = completed.length;
-
-  const sleepStats = weeklySleepStats(sessions.map((s:any)=>({...s, startedAt:new Date(s.startedAt), endedAt:new Date(s.endedAt)})), toLocal, today);
-  const delta = sleepStats.averageMinutes != null && sleepStats.prevAverageMinutes != null
-      ? sleepStats.averageMinutes - sleepStats.prevAverageMinutes
-      : null;
-
-  const activeGoals = goalRows.filter((g:any) => g.status === "active").map((g:any) => ({ title: g.title, progress: computeGoalProgress(g, g.tasks) }));
-  const measurable = activeGoals.filter((g:any) => g.progress.percent != null);
-  const avgGoalPercent = measurable.length > 0 ? Math.round(measurable.reduce((a:any, g:any) => a + (g.progress.percent ?? 0), 0) / measurable.length) : null;
-
-  const energyCounts = { energized: 0, okay: 0, tired: 0 };
-  for (const c of checkins) {
-    if (c.energy && c.energy in energyCounts) energyCounts[c.energy as keyof typeof energyCounts] += 1;
-  }
-  const checkinDays = checkins.filter((c:any) => c.energy).length;
-  const activityTotal = checkins.reduce((a:any, c:any) => a + (c.activityMinutes ?? 0), 0);
-  const openTasks = allTasks.filter((t:any) => t.status !== "done").length;
-  const hasAnyData = weekTotal > 0 || sleepStats.nightsTracked > 0 || activeGoals.length > 0 || checkinDays > 0;
 
   return (
-    <div className="animate-rise">
-      <header>
-        <h1 className="text-[26px] font-bold tracking-tight text-ink">Progress</h1>
-        <p className="mt-1 text-[14px] text-ink2">The last 7 days — computed only from data you&rsquo;ve actually recorded.</p>
-      </header>
-
-      {!hasAnyData ? (
-        <div className="card mt-7">
-          <EmptyState icon={ChartColumn} title="Nothing to measure yet" body={openTasks > 0 ? "Complete a task, track one night of sleep, or check in on Health — your trends will appear here." : "Add a task on Home, track a night of sleep, or check in on Health — your trends will appear here."} />
+    <Modal open={open} onClose={onClose} title={goal ? "Maqsadni tahrirlash" : "Yangi maqsad"} size="md">
+      <div className="space-y-4">
+        <Field label="Maqsad" htmlFor="g-title">
+          <input id="g-title" className="input" autoFocus placeholder="Nima qilmoqchisiz?" value={title} onChange={e => { setTitle(e.target.value); setError(""); }} />
+          {error && <p className="text-small text-[#C65B55] mt-1">{error}</p>}
+        </Field>
+        <Field label="Tavsif (ixtiyoriy)" htmlFor="g-desc">
+          <textarea id="g-desc" className="input" rows={2} placeholder="Maqsad haqida batafsil..." value={desc} onChange={e => setDesc(e.target.value)} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Maqsad raqami" htmlFor="g-target">
+            <input id="g-target" type="number" className="input" placeholder="20" value={target} onChange={e => setTarget(e.target.value ? Number(e.target.value) : "")} />
+          </Field>
+          <Field label="Birlik" htmlFor="g-unit">
+            <input id="g-unit" className="input" placeholder="kitob, kun..." value={unit} onChange={e => setUnit(e.target.value)} />
+          </Field>
         </div>
-      ) : (
-        <>
-          <div className="mt-7 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <div className="card p-4 sm:p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Tasks done</p>
-              <p className="mt-1 text-[26px] font-bold tracking-tight text-ink">{weekTotal}</p>
-              <p className="text-[12px] text-ink3">this week · {openTasks} open</p>
-            </div>
-            <div className="card p-4 sm:p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Sleep average</p>
-              <p className="mt-1 text-[26px] font-bold tracking-tight text-ink">{sleepStats.averageMinutes != null ? formatDuration(sleepStats.averageMinutes) : "—"}</p>
-              <p className="flex items-center gap-1 text-[12px] text-ink3">
-                {delta == null ? "need prior week to compare" : <>{delta > 0 ? <TrendingUp size={12} className="text-accent" /> : delta < 0 ? <TrendingDown size={12} className="text-amber" /> : <Minus size={12} />}{delta === 0 ? "same as last week" : `${delta > 0 ? "+" : ""}${formatDuration(delta)} vs last week`}</>}
-              </p>
-            </div>
-            <div className="card p-4 sm:p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Goals active</p>
-              <p className="mt-1 text-[26px] font-bold tracking-tight text-ink">{activeGoals.length}</p>
-              <p className="text-[12px] text-ink3">{avgGoalPercent != null ? `avg ${avgGoalPercent}% where measurable` : "add targets to measure"}</p>
-            </div>
-            <div className="card p-4 sm:p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3">Activity</p>
-              <p className="mt-1 text-[26px] font-bold tracking-tight text-ink">{activityTotal > 0 ? `${activityTotal}m` : "—"}</p>
-              <p className="text-[12px] text-ink3">{checkinDays > 0 ? `${checkinDays} check-in${checkinDays === 1 ? "" : "s"} this week` : "no check-ins yet"}</p>
-            </div>
+        <button onClick={save} className="btn btn-primary w-full btn-lg">Saqlash</button>
+      </div>
+    </Modal>
+  );
+}
+
+export default function ProgressPage() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [pid, setPid] = useState<string | null>(null);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledGoalRow[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<GoalRow | undefined>();
+  const [showEdit, setShowEdit] = useState(false);
+  const [tab, setTab] = useState<"active"|"completed"|"reminders">("active");
+
+  function reload() {
+    const id = Storage.getCurrentProfileId();
+    if (!id) return;
+    setPid(id);
+    setGoals(Storage.getGoals().filter(g => g.profileId === id));
+    setScheduled(Storage.getScheduledGoals().filter(s => s.profileId === id));
+    setTasks(Storage.getTasks().filter(t => t.profileId === id));
+  }
+
+  useEffect(() => {
+    setMounted(true);
+    const id = Storage.getCurrentProfileId();
+    if (!id || !Storage.getProfile(id)) { router.replace("/welcome"); return; }
+    setPid(id);
+    setGoals(Storage.getGoals().filter(g => g.profileId === id));
+    setScheduled(Storage.getScheduledGoals().filter(s => s.profileId === id));
+    setTasks(Storage.getTasks().filter(t => t.profileId === id));
+  }, [router]);
+
+  if (!mounted) return null;
+
+  const active = goals.filter(g => g.status === "active");
+  const completed = goals.filter(g => g.status !== "active");
+
+  const completedThisWeek = tasks.filter((t: any) => {
+    if (t.status !== "done" || !t.completedAt) return false;
+    const d = new Date(t.completedAt);
+    const now = new Date();
+    return (now.getTime() - d.getTime()) < 7 * 86400000;
+  }).length;
+
+  return (
+    <div className="min-h-dvh bg-[var(--c-bg)] page-enter">
+      <div className="px-5 pt-12 pb-4 flex items-end justify-between">
+        <div>
+          <h1 className="text-h1">Taraqqiyot</h1>
+          <p className="text-body text-[var(--c-ink2)] mt-1">Maqsadlar va natijalar</p>
+        </div>
+        <button onClick={() => setShowAdd(true)} className="btn btn-sm btn-ghost">
+          <Plus size={16} /> Maqsad
+        </button>
+      </div>
+
+      {/* Quick stats */}
+      <div className="px-4 grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: "Faol", val: active.length, color: "#FF633C" },
+          { label: "Bajarildi (bu hafta)", val: completedThisWeek, color: "#3F8065" },
+          { label: "Lamp eslatma", val: scheduled.filter(s => s.state !== "completed").length, color: "#C8943E" },
+        ].map(s => (
+          <div key={s.label} className="card text-center py-3">
+            <p className="text-display" style={{ color: s.color, fontSize: "1.75rem" }}>{s.val}</p>
+            <p className="text-small text-[var(--c-ink2)]" style={{ fontSize: "10px", lineHeight: 1.3 }}>{s.label}</p>
           </div>
+        ))}
+      </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <section className="card p-5 sm:p-6" aria-label="Tasks completed per day">
-              <SectionHeader title="Tasks completed" subtitle="Per day, last 7 days" />
-              {weekTotal === 0 ? (
-                <p className="mt-4 text-[13.5px] text-ink2">No tasks completed this week. Your daily completion bars will show up here as you finish tasks.</p>
-              ) : (
-                <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
-                  {week.map((iso) => {
-                    const count = perDay[iso];
-                    return (
-                      <div key={iso} className="flex flex-col items-center gap-1.5">
-                        <div className="flex h-24 w-full items-end justify-center">
-                          <div className={`w-full max-w-7 rounded-md ${count > 0 ? "bg-accent" : "bg-line"}`} style={{ height: count > 0 ? Math.max(8, (count / maxTasks) * 96) : 4 }} />
-                        </div>
-                        <span className="text-[11px] font-medium text-ink3">{formatDayShort(iso)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+      {/* Tabs */}
+      <div className="flex px-4 gap-2 mb-4">
+        {(["active","completed","reminders"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-xl text-small font-semibold transition-all ${tab===t?"bg-[var(--c-ink)] text-[var(--c-bg)]":"bg-[var(--c-surface)] text-[var(--c-ink2)]"}`}>
+            {t === "active" ? "Faol" : t === "completed" ? "Bajarilgan" : "Lamp"}
+          </button>
+        ))}
+      </div>
 
-            <section className="card p-5 sm:p-6" aria-label="Sleep trend">
-              <SectionHeader title="Sleep trend" subtitle={target ? `Compared with your ${formatDuration(target)} target` : "Set a target in Settings to compare"} />
-              {sleepStats.nightsTracked === 0 ? (
-                <p className="mt-4 text-[13.5px] text-ink2">No nights tracked this week. Start sleep tracking from Home or Health to see the trend.</p>
-              ) : (
-                <div className="mt-6 grid grid-cols-7 gap-1.5 sm:gap-3">
-                  {week.map((iso) => {
-                    const s = sessions.find((x:any) => dayPartsInTz(tz, new Date(x.startedAt)).iso === iso);
-                    const wakeTime = s?.endedAt ? new Date(s.endedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
-                    const status = s?.durationMinutes != null ? statusForSession(s.durationMinutes, wakeTime, prefs.wakeTime) : null;
-                    const tone = s?.durationMinutes == null ? "bg-line" : 
-                                 status === "met" ? "bg-emerald-500" :
-                                 status === "short" ? "bg-amber-500" : "bg-red-500";
-                    const max = Math.max(target ?? 480, ...[0, ...sessions.map((x:any) => x.durationMinutes ?? 0)]) * 1.1;
-                    const h = s?.durationMinutes != null ? Math.max(8, (s.durationMinutes / max) * 96) : 4;
-                    return (
-                      <div key={iso} className="flex flex-col items-center gap-1.5">
-                        <div className="flex h-24 w-full items-end justify-center">
-                          <div className={`w-full max-w-7 rounded-md ${tone}`} style={{ height: h }} />
-                        </div>
-                        <span className="text-[11px] font-medium text-ink3">{formatDayShort(iso)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </div>
+      <div className="px-4 space-y-3">
+        {tab === "active" && (
+          <>
+            {active.length === 0 && (
+              <EmptyState icon={Target} title="Hali maqsad yo'q" body="Birinchi maqsadingizni yarating va lamp rejasini sozlang" action={<button onClick={() => setShowAdd(true)} className="btn btn-primary btn-sm">Maqsad qo'shish</button>} />
+            )}
+            {active.map(g => {
+              const pct = g.metricTarget ? Math.round((g.metricProgress / g.metricTarget) * 100) : null;
+              const linkedTasks = tasks.filter((t: any) => t.goalId === g.id);
+              const taskPct = linkedTasks.length > 0 ? Math.round(linkedTasks.filter((t: any) => t.status === "done").length / linkedTasks.length * 100) : null;
+              const displayPct = pct ?? taskPct;
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <section className="card p-5 sm:p-6" aria-label="Goal progress">
-              <SectionHeader title="Goals" subtitle="Real progress from tasks and targets" />
-              <div className="mt-4 space-y-4">
-                {activeGoals.length === 0 ? (
-                  <p className="text-[13.5px] text-ink2">No active goals. Create one on the Goals page and it will be tracked here.</p>
-                ) : (
-                  activeGoals.map((g:any) => (
-                    <div key={g.title}>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="truncate text-[14px] font-semibold text-ink">{g.title}</p>
-                        {g.progress.percent != null && <span className="text-[13px] font-bold text-accent-ink">{g.progress.percent}%</span>}
+              return (
+                <div key={g.id} className="card">
+                  <div className="flex items-start gap-4">
+                    <ProgressRing percent={displayPct ?? 0} size={52} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body font-semibold">{g.title}</p>
+                      {g.description && <p className="text-small text-[var(--c-ink2)] mt-0.5">{g.description}</p>}
+                      <div className="flex gap-2 mt-1 flex-wrap">
+                        {g.metricTarget && (
+                          <span className="text-small text-[var(--c-ink2)]">{g.metricProgress}/{g.metricTarget} {g.metricUnit}</span>
+                        )}
+                        {linkedTasks.length > 0 && (
+                          <span className="text-small text-[var(--c-ink2)]">{linkedTasks.filter((t:any)=>t.status==="done").length}/{linkedTasks.length} vazifa</span>
+                        )}
                       </div>
-                      <div className="mt-2"><ProgressBar percent={g.progress.percent} height={5} /></div>
-                      <p className="mt-1 text-[11.5px] text-ink3">{g.progress.explanation}</p>
                     </div>
-                  ))
-                )}
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditing(g); setShowEdit(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[var(--c-ink2)]"><Pencil size={14}/></button>
+                      <button onClick={() => { Storage.saveGoal({...g,status:"archived"}); reload(); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[var(--c-ink2)]"><Archive size={14}/></button>
+                    </div>
+                  </div>
+                  {/* metric progress controls */}
+                  {g.metricTarget && (
+                    <div className="mt-3 flex gap-2 items-center">
+                      <button onClick={() => { Storage.saveGoal({...g,metricProgress:Math.max(0,g.metricProgress-1)}); reload(); }} className="btn btn-sm btn-ghost">−1</button>
+                      <div className="flex-1 h-2 bg-[var(--c-surface2)] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{width:`${pct??0}%`,background:"#FF633C"}}/>
+                      </div>
+                      <button onClick={() => { const np=Math.min(g.metricTarget!,g.metricProgress+1); Storage.saveGoal({...g,metricProgress:np,status:np>=g.metricTarget!?"archived":g.status}); reload(); }} className="btn btn-sm btn-ghost">+1</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {tab === "completed" && (
+          <>
+            {completed.length === 0 && <EmptyState icon={Check} title="Hali bajarilgan maqsad yo'q" body="Faol maqsad yarating va uni bajarishga harakat qiling" />}
+            {completed.map(g => (
+              <div key={g.id} className="card flex items-center gap-4 opacity-70">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{background:g.status==="archived"?"var(--c-surface2)":"rgba(63,128,101,0.15)"}}>
+                  {g.status === "archived" ? <Archive size={18} style={{color:"var(--c-ink2)"}}/> : <Check size={18} style={{color:"#3F8065"}}/>}
+                </div>
+                <div className="flex-1"><p className="text-body font-semibold">{g.title}</p><p className="text-small text-[var(--c-ink2)]">{g.status === "archived" ? "Arxivlangan" : "Bajarilgan"}</p></div>
+                <button onClick={() => { Storage.deleteGoal(g.id); reload(); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[#C65B55]"><Trash2 size={14}/></button>
               </div>
-            </section>
+            ))}
+          </>
+        )}
 
-            <section className="card p-5 sm:p-6" aria-label="Energy pattern">
-              <SectionHeader title="Energy pattern" subtitle="From your optional daily check-ins" />
-              {checkinDays === 0 ? (
-                <p className="mt-4 text-[13.5px] text-ink2">No check-ins this week. The one-tap “How are you feeling?” on Health feeds this card.</p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {(["energized", "okay", "tired"] as const).map((e) => (
-                    <div key={e} className="flex items-center gap-3">
-                      <span className="w-20 text-[13px] font-medium capitalize text-ink2">{e}</span>
-                      <div className="flex-1"><ProgressBar percent={checkinDays > 0 ? Math.round((energyCounts[e] / checkinDays) * 100) : 0} tone={e === "energized" ? "accent" : e === "okay" ? "amber" : "red"} height={6} /></div>
-                      <span className="w-8 text-right text-[13px] font-semibold text-ink">{energyCounts[e]}</span>
-                    </div>
-                  ))}
+        {tab === "reminders" && (
+          <>
+            {scheduled.length === 0 && <EmptyState icon={Target} title="Lamp rejalari yo'q" body="Bugun ekranida lamp rejasini qo'shing" />}
+            {scheduled.map(s => {
+              const g = goals.find(x => x.id === s.goalId);
+              const fire = s.state !== "completed" ? (() => { try { return new Date(s.scheduledAt).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); } catch { return "—"; } })() : null;
+              const stateColors: Record<string, string> = { idle:"#ADA996",upcoming:"#C8943E",active:"#FF633C",snoozed:"#C8943E",completed:"#3F8065",missed:"#C65B55" };
+              return (
+                <div key={s.id} className="card flex items-center gap-4">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:stateColors[s.state]??stateColors.idle}}/>
+                  <div className="flex-1">
+                    <p className="text-body font-semibold">{g?.title ?? "Maqsad o'chirilgan"}</p>
+                    <p className="text-small text-[var(--c-ink2)]">{fire ?? "Bajarildi"} · {fmtDuration(s.duration)} · {s.repeat==="once"?"Bir marta":s.repeat==="daily"?"Har kuni":"Ish kunlari"}</p>
+                  </div>
+                  <button onClick={() => { Storage.deleteScheduledGoal(s.id); reload(); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--c-surface2)] text-[#C65B55]"><Trash2 size={14}/></button>
                 </div>
-              )}
-            </section>
-          </div>
-        </>
-      )}
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {pid && <GoalModal open={showAdd} onClose={() => setShowAdd(false)} profileId={pid} onSaved={reload} />}
+      {pid && editing && <GoalModal open={showEdit} onClose={() => { setShowEdit(false); setEditing(undefined); }} goal={editing} profileId={pid} onSaved={reload} />}
     </div>
   );
 }

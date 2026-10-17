@@ -1,66 +1,45 @@
 "use client";
-
-import { useState, useTransition, type FormEvent } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Storage, generateId } from "@/lib/client/storage";
-import { Spinner } from "@/components/ui";
+import { Storage, generateId, todayDate } from "@/lib/client/storage";
 
-/** One-keystroke task creation — used on Home. No ceremony required. */
-export function InlineTaskAdd({
-  dueDate,
-  goalId,
-  placeholder = "Add a task for today…",
-}: {
-  dueDate: string | null;
+export function InlineTaskAdd({ dueDate, goalId, placeholder, onAdded }: {
+  dueDate?: string | null;
   goalId?: string | null;
   placeholder?: string;
+  onAdded?: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [error, setError] = useState("");
-  const [pending, start] = useTransition();
+  const [val, setVal] = useState("");
 
-  function submit(e?: FormEvent) {
+  function submit(e?: React.FormEvent) {
     e?.preventDefault();
-    const t = title.trim();
+    const t = val.trim();
     if (!t) return;
-    start(() => {
-      const pid = Storage.getCurrentProfileId();
-      if (!pid) return;
-      Storage.saveTask({
-        id: generateId(), profileId: pid, title: t,
-        priority: "normal", durationMinutes: null, dueDate,
-        source: "user", notes: null, status: "todo",
-        goalId: goalId ?? null, completedAt: null, createdAt: new Date()
-      });
-      setTitle("");
-      setError("");
-      // simple hard reload to update UI since we bypassed server actions
-      window.location.reload();
+    const pid = Storage.getCurrentProfileId();
+    if (!pid) return;
+    Storage.saveTask({
+      id: generateId(), profileId: pid, goalId: goalId ?? null,
+      title: t, notes: null, dueDate: dueDate ?? todayDate(),
+      priority: "normal", durationMinutes: null,
+      status: "todo", source: "user", completedAt: null,
+      createdAt: new Date().toISOString(),
     });
+    setVal("");
+    onAdded?.();
   }
 
   return (
-    <form onSubmit={submit} className="w-full">
-      <div className="flex items-center gap-2 rounded-xl border border-dashed border-line-strong bg-transparent px-3 py-2 transition-colors focus-within:border-accent focus-within:bg-surface">
-        <Plus size={16} className="shrink-0 text-ink3" aria-hidden />
-        <label className="sr-only" htmlFor={`quick-add-${dueDate ?? "none"}-${goalId ?? "none"}`}>
-          {placeholder}
-        </label>
-        <input
-          id={`quick-add-${dueDate ?? "none"}-${goalId ?? "none"}`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={placeholder}
-          maxLength={160}
-          className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-ink3"
-        />
-        {pending && <Spinner size={15} className="text-ink3" />}
-      </div>
-      {error && (
-        <p role="alert" className="mt-1.5 text-[12.5px] font-medium text-red">
-          {error}
-        </p>
-      )}
+    <form onSubmit={submit} className="flex gap-2">
+      <input
+        className="input flex-1 py-2.5"
+        placeholder={placeholder ?? "Vazifa qo'shish…"}
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        maxLength={160}
+      />
+      <button type="submit" disabled={!val.trim()} className="btn btn-sm btn-primary aspect-square !px-0 w-10 h-10 flex-shrink-0">
+        <Plus size={18} />
+      </button>
     </form>
   );
 }
