@@ -1,5 +1,6 @@
 import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
+import { ensureSchema } from "@/db/bootstrap";
 import { users } from "@/db/schema";
 import { createSession } from "@/lib/auth";
 import { verifyFirebaseIdToken } from "@/lib/firebase-token";
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await ensureSchema();
     const [existing] = await db
       .select()
       .from(users)

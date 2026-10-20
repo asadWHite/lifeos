@@ -1,6 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/db";
+import { ensureSchema } from "@/db/bootstrap";
 import { authSessions, users, type User } from "@/db/schema";
 import { eq, gt, and } from "drizzle-orm";
 
@@ -63,6 +64,7 @@ export async function getSessionUser(): Promise<User | null> {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
+    await ensureSchema(); // self-bootstrap on any reachable host
     const rows = await db
       .select({ user: users })
       .from(authSessions)

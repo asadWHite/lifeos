@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getSessionUser } from "@/lib/auth";
+import { ensureSchema } from "@/db/bootstrap";
 import { todayInTz } from "@/lib/dates";
 import type { User } from "@/db/schema";
 
@@ -21,8 +22,14 @@ export function jsonOk<T extends Record<string, unknown>>(data: T, init?: { stat
   return NextResponse.json({ ok: true, ...data }, { status: init?.status ?? 200 });
 }
 
-/** Authenticated user for a route handler, or a ready 401 response. */
+/** Authenticated user for a route handler, or a ready 401/503 response. */
 export async function requireUser(): Promise<{ user: User } | { response: NextResponse }> {
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.error("[api] schema bootstrap failed");
+    return { response: handleApiError(e, "The LifeOS database can't be reached right now.") };
+  }
   const user = await getSessionUser();
   if (!user) return { response: jsonError(401, "Not authenticated") };
   return { user };
