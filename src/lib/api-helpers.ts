@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { ensureSchema } from "@/db/bootstrap";
+import { resolvePostgresUrl } from "@/lib/supabase";
 import { todayInTz } from "@/lib/dates";
 import type { User } from "@/db/schema";
 
@@ -67,10 +68,11 @@ export function handleApiError(e: unknown, fallback = "Something went wrong") {
     console.error("[api] database connection failed");
     return jsonError(503, "The LifeOS database can't be reached right now. Please try again shortly.");
   }
-  // Deterministic config check: with no DATABASE_URL at all, database failures
-  // are configuration problems by definition — report them honestly as 503.
-  if (!process.env.DATABASE_URL) {
-    console.error("[api] DATABASE_URL is not configured");
+  // Deterministic config check: with no resolvable Postgres connection
+  // string, database failures are configuration problems by definition —
+  // report them honestly as 503.
+  if (!resolvePostgresUrl().url) {
+    console.error("[api] no Postgres connection string configured");
     return jsonError(503, "The LifeOS database isn't configured on this deployment yet.", { diag: "DATABASE_URL_MISSING" });
   }
   console.error("[api]", fallback, e);

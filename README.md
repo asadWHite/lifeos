@@ -53,18 +53,24 @@ Environment variables required in
 | `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` | optional |
 | `DATABASE_URL` | **hosted Postgres** connection string |
 
-IMPORTANT — `DATABASE_URL` on Vercel: `localhost`/sandbox databases are not
-reachable from Vercel's servers. Create a hosted Postgres (Vercel → Storage →
-Create Database → Postgres, or Neon), set `DATABASE_URL`, then apply the schema:
+IMPORTANT — Postgres connection on Vercel: `localhost`/sandbox databases are
+not reachable from Vercel's servers. Two supported routes:
 
-```bash
-DATABASE_URL="<hosted-url>" npx drizzle-kit push
-```
+**A. Supabase (team integration is installed)**
+1. Vercel → project `lifeos` → **Integrations (or Storage) → Supabase →
+   Connect Project** and pick your Supabase project — Vercel auto-injects
+   `SUPABASE_POSTGRES_URL*` / `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. Redeploy. The app resolves `SUPABASE_POSTGRES_URL*` automatically and
+   **self-bootstraps all tables** on first use.
 
-Until a reachable `DATABASE_URL` exists, the deployed site renders but sign-in
-returns a clear "database can't be reached" 503 instead of crashing.
-After changing any env var, trigger a new deployment (push to `main` or
-Vercel → Deployments → Redeploy).
+**B. Any hosted Postgres (manual)**
+1. Create the database (Vercel Postgres / Neon / Supabase session pooler).
+2. Set `DATABASE_URL` (Project → Settings → Environment Variables).
+3. Redeploy — schema self-creates (idempotent bootstrap; no CLI needed).
+
+The publishable Supabase key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) is
+already configured. **Never** put the service-role key anywhere client-visible.
+After changing any env var, trigger a new deployment.
 
 ## Authentication
 

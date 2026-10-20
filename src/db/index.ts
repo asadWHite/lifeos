@@ -1,14 +1,15 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { resolvePostgresUrl } from "@/lib/supabase";
 
-const databaseUrl = process.env.DATABASE_URL;
+/* Resolves from DATABASE_URL or any Supabase/Postgres env the Vercel
+ * integration may inject (see resolvePostgresUrl). Don't crash at import
+ * time when unset: the pool fails lazily on first query; API routes surface
+ * that as a clear 503 and session lookups degrade to "signed out". */
+const { url: databaseUrl, source } = resolvePostgresUrl();
 
-/* Don't crash at import time when DATABASE_URL is missing (e.g. a fresh
- * Vercel deployment before a hosted Postgres is attached). The pool fails
- * lazily on first query; API routes surface that as a clear 503 and
- * session lookups degrade to "signed out" instead of a white screen. */
 if (!databaseUrl) {
-  console.warn("[db] DATABASE_URL is not set — database calls will fail until it is configured.");
+  console.warn("[db] No Postgres connection string found (DATABASE_URL / SUPABASE_POSTGRES_URL / POSTGRES_URL) — database calls will fail until one is configured.");
 }
 
 const globalForDb = globalThis as typeof globalThis & {

@@ -1,4 +1,5 @@
 import { pool } from "@/db";
+import { resolvePostgresUrl } from "@/lib/supabase";
 
 /* Idempotent schema bootstrap.
  *
@@ -139,7 +140,7 @@ let inflight: Promise<void> | null = null;
 
 /** Runs the bootstrap once per process; safe to call on every request. */
 export function ensureSchema(): Promise<void> {
-  if (!process.env.DATABASE_URL) return Promise.resolve(); // 503 handled upstream
+  if (!resolvePostgresUrl().url) return Promise.resolve(); // 503 handled upstream
   if (!inflight) {
     inflight = pool
       .query(SCHEMA_SQL)
