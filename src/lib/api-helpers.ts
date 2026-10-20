@@ -60,6 +60,12 @@ export function handleApiError(e: unknown, fallback = "Something went wrong") {
     console.error("[api] database connection failed");
     return jsonError(503, "The LifeOS database can't be reached right now. Please try again shortly.");
   }
+  // Deterministic config check: with no DATABASE_URL at all, database failures
+  // are configuration problems by definition — report them honestly as 503.
+  if (!process.env.DATABASE_URL) {
+    console.error("[api] DATABASE_URL is not configured");
+    return jsonError(503, "The LifeOS database isn't configured on this deployment yet.", { diag: "DATABASE_URL_MISSING" });
+  }
   console.error("[api]", fallback, e);
   const diag = diagCode(e);
   return jsonError(500, fallback, diag ? { diag } : {});
