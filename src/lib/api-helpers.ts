@@ -8,6 +8,15 @@ export function jsonError(status: number, message: string, extra?: Record<string
   return NextResponse.json({ ok: false, error: message, ...extra }, { status });
 }
 
+/** Safe diagnostic tag: standard network/pg error codes only (never messages,
+ *  which could theoretically embed connection details). */
+function diagCode(e: unknown): string | null {
+  const code = (e as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && /^(E[A-Z_]+|[0-9A-Z]{5})$/.test(code)) return code;
+  const name = (e as { name?: unknown } | null)?.name;
+  return typeof name === "string" ? name.slice(0, 40) : null;
+}
+
 export function jsonOk<T extends Record<string, unknown>>(data: T, init?: { status?: number }) {
   return NextResponse.json({ ok: true, ...data }, { status: init?.status ?? 200 });
 }
@@ -52,5 +61,6 @@ export function handleApiError(e: unknown, fallback = "Something went wrong") {
     return jsonError(503, "The LifeOS database can't be reached right now. Please try again shortly.");
   }
   console.error("[api]", fallback, e);
-  return jsonError(500, fallback);
+  const diag = diagCode(e);
+  return jsonError(500, fallback, diag ? { diag } : {});
 }
