@@ -47,9 +47,30 @@ Rebuild from scratch: **complete** (all stages implemented). Last updated: this 
 - HTML spot-check: personalized greeting + persisted tasks render ✔
 - Synthetic test account deleted after verification (justified cleanup).
 
+## Firebase + deployment status (this session)
+- **Firebase Auth integrated** (project `lifeos-8bac1`): client singleton
+  (`src/lib/firebase.ts`), popup + redirect fallback, error mapping,
+  session restore; server verification of ID tokens via Google securetoken
+  certs (`src/lib/firebase-token.ts`) — zero service-account secrets.
+  Exchange endpoint: `POST /api/auth/firebase` (verified: 400 missing token,
+  401 junk token, real verification attempted).
+- **Env vars added to Vercel** (verified via API): 7× `NEXT_PUBLIC_FIREBASE_*`
+  for production/preview/development. Local `.env` updated (gitignored);
+  `.env.example` holds placeholders only. Old `GOOGLE_CLIENT_*` flow removed.
+- **GitHub**: pushed to `asadWHite/lifeos@main` on top of existing history
+  (previous lamp-era commit preserved as parent). Commit `1bbe254`.
+- **Vercel**: project `lifeos` auto-deploys main; production deployment
+  `dpl_Hz2LpLiPHDMRnHRm6BXGryaNay43` READY; alias
+  `lifeos-iota-topaz.vercel.app` re-pointed automatically and **verified 200**
+  with "Continue with Google" rendered + config baked in.
+- **DB on Vercel**: no hosted Postgres yet (Storage API doesn't allow
+  token-based creation). Site renders; data APIs degrade to clean 503.
+  Manual step required: create Vercel Postgres → set `DATABASE_URL` →
+  `drizzle-kit push` → redeploy. See README.
+
 ## Known limitations (honest)
-- Google OAuth end-to-end cannot be verified without real Google credentials
-  (`GOOGLE_CLIENT_ID/SECRET` + registered callback). Flow implemented per spec.
+- End-to-end Google click-through needs manual browser test + two Firebase
+  Console toggles (enable Google provider; authorize the Vercel domain).
 - Closed-browser push notifications require service worker + push service +
   server scheduler; in-app + browser notifications (while open) are implemented.
 - Browser-based E2E (Playwright) not available in this sandbox; journeys were

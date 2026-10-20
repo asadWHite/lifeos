@@ -26,6 +26,17 @@ export function userToday(user: User): string {
 
 const DB_ERROR_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "57P01", "08006", "08001"]);
 
+function isDbConnectionError(e: unknown): boolean {
+  if (!e || typeof e !== "object") return false;
+  const code = (e as { code?: string }).code;
+  if (code && DB_ERROR_CODES.has(code)) return true;
+  // Node ≥ 20 wraps dual-stack failures in AggregateError (e.errors[]).
+  const inner = (e as { errors?: unknown[] }).errors;
+  if (Array.isArray(inner)) return inner.some(isDbConnectionError);
+  const msg = (e as { message?: string }).message ?? "";
+  return /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|connection terminated/i.test(msg);
+}
+
 export function handleApiError(e: unknown, fallback = "Something went wrong") {
   if (e instanceof ZodError) {
     const first = e.issues[0];
@@ -33,9 +44,8 @@ export function handleApiError(e: unknown, fallback = "Something went wrong") {
       issues: e.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
     });
   }
-  const code = (e as { code?: string } | null)?.code;
-  if (code && DB_ERROR_CODES.has(code)) {
-    console.error("[api] database connection failed:", code);
+  if (isDbConnectionError(e)) {
+    console.error("[api] database connection failed");
     return jsonError(503, "The LifeOS database can't be reached right now. Please try again shortly.");
   }
   console.error("[api]", fallback, e);
