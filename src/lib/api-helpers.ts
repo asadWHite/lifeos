@@ -24,7 +24,10 @@ export function userToday(user: User): string {
   return todayInTz(user.timezone);
 }
 
-const DB_ERROR_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "57P01", "08006", "08001"]);
+const DB_ERROR_CODES = new Set([
+  "ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN",
+  "ENETUNREACH", "EHOSTUNREACH", "EPIPE", "3D000", "57P01", "08006", "08001", "57P03",
+]);
 
 function isDbConnectionError(e: unknown): boolean {
   if (!e || typeof e !== "object") return false;
@@ -34,7 +37,7 @@ function isDbConnectionError(e: unknown): boolean {
   const inner = (e as { errors?: unknown[] }).errors;
   if (Array.isArray(inner)) return inner.some(isDbConnectionError);
   const msg = (e as { message?: string }).message ?? "";
-  return /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|connection terminated/i.test(msg);
+  return /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EAI_AGAIN|connection terminated|does not exist|timeout exceeded/i.test(msg);
 }
 
 export function handleApiError(e: unknown, fallback = "Something went wrong") {

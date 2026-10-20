@@ -55,12 +55,14 @@ export async function destroySession(): Promise<void> {
 
 /** Returns the authenticated user or null. Degrades to null when the
  *  database is unreachable so pages render a signed-out state with a
- *  diagnostic instead of crashing. */
+ *  diagnostic instead of crashing. Next's DynamicServerError (thrown by
+ *  cookies() during static prerendering) must propagate so routes stay
+ *  dynamic. */
 export async function getSessionUser(): Promise<User | null> {
+  const jar = await cookies(); // may mark the route dynamic — intentional
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
   try {
-    const jar = await cookies();
-    const token = jar.get(SESSION_COOKIE)?.value;
-    if (!token) return null;
     const rows = await db
       .select({ user: users })
       .from(authSessions)
