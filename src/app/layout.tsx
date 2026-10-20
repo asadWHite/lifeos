@@ -1,42 +1,34 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+  axes: ["opsz"],
+});
+
 export const metadata: Metadata = {
-  title: "LifeOS — Your personal operating system",
-  description: "Goal-driven daily planner with sleep tracking and the signature lamp experience.",
-  applicationName: "LifeOS",
+  title: { default: "LifeOS — TimeFlow", template: "%s · LifeOS" },
+  description: "LifeOS is your personal operating system: plan your day on the TimeFlow timeline, track sleep, build habits, and reach goals.",
 };
 
 export const viewport: Viewport = {
+  themeColor: "#151B23",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F1EA" },
-    { media: "(prefers-color-scheme: dark)",  color: "#151B23" },
-  ],
 };
 
-const themeScript = `(function(){
-  try {
-    var t = localStorage.getItem("lifeos_theme") || "system";
-    if (t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
-  } catch(e) {}
-})();`;
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const jar = await cookies();
+  const theme = jar.get("lifeos_theme")?.value === "light" ? "light" : "dark";
   return (
-    <html lang="uz" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body>{children}</body>
+    <html lang="en" data-theme={theme} className={`${inter.variable} ${fraunces.variable}`}>
+      <body className="bg-app text-ink antialiased">{children}</body>
     </html>
   );
 }
