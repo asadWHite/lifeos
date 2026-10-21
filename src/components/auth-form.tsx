@@ -7,12 +7,12 @@ import { Button, Field, Input, cn } from "@/components/ui";
 import { GoogleSignInButton } from "@/components/google-signin-button";
 
 export function AuthForm({
-  firebaseConfigured,
-  firebaseMissing,
+  supabaseConfigured,
+  supabaseMissing,
   databaseConfigured,
 }: {
-  firebaseConfigured: boolean;
-  firebaseMissing: string[];
+  supabaseConfigured: boolean;
+  supabaseMissing: string[];
   databaseConfigured: boolean;
 }) {
   const router = useRouter();
@@ -84,17 +84,16 @@ export function AuthForm({
           </div>
         </div>
       )}
-      {firebaseConfigured ? (
+      {supabaseConfigured ? (
         <GoogleSignInButton />
       ) : (
         <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4" role="note">
           <div className="flex items-start gap-2.5">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
             <div>
-              <p className="text-sm font-semibold text-warn">Google sign-in not configured</p>
+              <p className="text-sm font-semibold text-warn">Supabase not configured</p>
               <p className="mt-1 text-[13px] leading-relaxed text-sub">
-                Set <code className="font-mono text-ink">{firebaseMissing.join(", ")}</code> to enable Firebase
-                Google sign-in. Email sign-in below is fully functional.
+                Set <code className="font-mono text-ink">{supabaseMissing.join(", ")}</code> to enable Supabase Auth.
               </p>
             </div>
           </div>

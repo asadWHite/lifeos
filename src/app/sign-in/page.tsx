@@ -8,22 +8,13 @@ export const metadata: Metadata = { title: "Welcome" };
 
 /* Server-side mirror of the client env check — NEXT_PUBLIC_* vars are
  * available to the server bundle too. */
-function firebaseServerStatus(): { configured: boolean; missing: string[] } {
-  const required = {
-    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
-  const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
-  return { configured: missing.length === 0, missing };
-}
+import { supabaseStatus } from "@/lib/supabase";
 
 export default async function SignInPage() {
   const user = await getSessionUser();
   if (user) redirect(user.onboardingCompleted ? "/today" : "/onboarding");
 
-  const firebase = firebaseServerStatus();
+  const supabaseInfo = supabaseStatus();
   const databaseConfigured = resolvePostgresUrl().url !== null;
 
   return (
@@ -48,8 +39,8 @@ export default async function SignInPage() {
           </p>
         </div>
         <AuthForm
-          firebaseConfigured={firebase.configured}
-          firebaseMissing={firebase.missing}
+          supabaseConfigured={supabaseInfo.configured}
+          supabaseMissing={supabaseInfo.missing}
           databaseConfigured={databaseConfigured}
         />
       </div>

@@ -28,7 +28,7 @@ export async function GET() {
       ok,
       db: { configured: !!pg.url, source: pg.source, reachable: dbOk },
       supabase: { configured: supa.configured, missing: supa.missing, rest: rest },
-      auth: { google: "firebase" },
+      auth: { provider: "supabase" },
     },
     { status: ok ? 200 : 503 },
   );

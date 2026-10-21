@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BellRing, LogOut, MoonStar, Sun, UserRound } from "lucide-react";
 import { api } from "@/lib/client-api";
-import { firebaseSignOut } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Select, Toggle, cn, useToast } from "@/components/ui";
 import { displayName } from "@/lib/personalize";
 import {
@@ -160,7 +160,8 @@ export function ProfileModule({ user }: { user: ProfileUser }) {
   async function signOut() {
     if (signingOut) return;
     setSigningOut(true);
-    await firebaseSignOut(); // also end the Firebase session (best-effort)
+    const supabase = createClient();
+    await supabase.auth.signOut();
     const res = await api("/api/auth/signout", "POST");
     if (!res.ok) {
       setSigningOut(false);

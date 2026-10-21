@@ -1,16 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { User } from "firebase/auth";
-import {
-  firebaseAuthErrorMessage,
-  resolveGoogleRedirect,
-  signInWithGooglePopup,
-  signInWithGoogleRedirect,
-  waitForFirebaseUser,
-} from "@/lib/firebase";
-import { api } from "@/lib/client-api";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui";
 
 function GoogleMark({ className }: { className?: string }) {
@@ -24,83 +15,30 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-/* Real Firebase Google sign-in:
- * 1. resolves a pending redirect (after popup fallback round-trip)
- * 2. auto-restores: if Firebase still holds a session, its verified token is
- *    exchanged for a LifeOS session without a second click
- * 3. click → popup; popup blocked → full-page redirect fallback
- * 4. token verified server-side (see /api/auth/firebase) */
 export function GoogleSignInButton() {
-  const router = useRouter();
-  const [pending, setPending] = useState(true); // true during restore check
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const exchanging = useRef(false);
-
-  const exchange = useCallback(
-    async (user: User) => {
-      if (exchanging.current) return;
-      exchanging.current = true;
-      setPending(true);
-      try {
-        const idToken = await user.getIdToken();
-        const res = await api<{ next?: string }>("/api/auth/firebase", "POST", { idToken });
-        if (!res.ok) {
-          setError(res.error ?? "Could not verify your Google sign-in.");
-          return;
-        }
-        router.push(res.data?.next ?? "/today");
-        router.refresh();
-      } catch {
-        setError("Network error — check your connection and try again.");
-      } finally {
-        exchanging.current = false;
-        setPending(false);
-      }
-    },
-    [router],
-  );
-
-  // Resolve redirect result + restore an existing Firebase session once.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const fromRedirect = await resolveGoogleRedirect();
-        if (cancelled) return;
-        if (fromRedirect) return exchange(fromRedirect);
-        const existing = await waitForFirebaseUser();
-        if (cancelled) return;
-        if (existing) return exchange(existing);
-        setPending(false); // no Google session → show the button
-      } catch {
-        if (!cancelled) setPending(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [exchange]);
 
   async function onClick() {
-    if (pending || exchanging.current) return; // duplicate-click guard
+    if (pending) return;
     setError(null);
     setPending(true);
+    
     try {
-      const user = await signInWithGooglePopup();
-      await exchange(user);
-    } catch (e) {
-      const code = (e as { code?: string }).code;
-      if (code === "auth/popup-blocked") {
-        // Reliable fallback: full-page redirect (page navigates away).
-        try {
-          await signInWithGoogleRedirect();
-          return; // never resolves here — redirect continues on next load
-        } catch (e2) {
-          setError(firebaseAuthErrorMessage((e2 as { code?: string }).code));
-        }
-      } else {
-        setError(firebaseAuthErrorMessage(code));
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+        },
+      });
+      
+      if (authError) {
+        setError(authError.message);
+        setPending(false);
       }
+    } catch (e) {
+      setError("An unexpected error occurred.");
       setPending(false);
     }
   }
