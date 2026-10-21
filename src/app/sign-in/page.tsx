@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { resolvePostgresUrl } from "@/lib/supabase";
 import { AuthForm } from "@/components/auth-form";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -23,6 +24,7 @@ export default async function SignInPage() {
   if (user) redirect(user.onboardingCompleted ? "/today" : "/onboarding");
 
   const firebase = firebaseServerStatus();
+  const databaseConfigured = resolvePostgresUrl().url !== null;
 
   return (
     <main className="relative grid min-h-dvh place-items-center overflow-hidden px-4 py-10">
@@ -45,7 +47,11 @@ export default async function SignInPage() {
             TimeFlow turns your schedule, sleep, habits and goals into a single timeline that always knows what&rsquo;s now and what&rsquo;s next.
           </p>
         </div>
-        <AuthForm firebaseConfigured={firebase.configured} firebaseMissing={firebase.missing} />
+        <AuthForm
+          firebaseConfigured={firebase.configured}
+          firebaseMissing={firebase.missing}
+          databaseConfigured={databaseConfigured}
+        />
       </div>
     </main>
   );

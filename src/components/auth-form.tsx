@@ -2,11 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
+import { Database, TriangleAlert } from "lucide-react";
 import { Button, Field, Input, cn } from "@/components/ui";
 import { GoogleSignInButton } from "@/components/google-signin-button";
 
-export function AuthForm({ firebaseConfigured, firebaseMissing }: { firebaseConfigured: boolean; firebaseMissing: string[] }) {
+export function AuthForm({
+  firebaseConfigured,
+  firebaseMissing,
+  databaseConfigured,
+}: {
+  firebaseConfigured: boolean;
+  firebaseMissing: string[];
+  databaseConfigured: boolean;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [pending, setPending] = useState(false);
@@ -56,6 +64,21 @@ export function AuthForm({ firebaseConfigured, firebaseMissing }: { firebaseConf
 
   return (
     <div className="glass rounded-[1.75rem] p-6 sm:p-8">
+      {!databaseConfigured && (
+        <div className="mb-5 rounded-2xl border border-warning/30 bg-warning/10 p-4" role="note">
+          <div className="flex items-start gap-2.5">
+            <Database className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
+            <div>
+              <p className="text-sm font-semibold text-warn">Database not connected on this deployment</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-sub">
+                Sign-in can&rsquo;t work until the site owner attaches a Postgres database
+                (<code className="font-mono text-ink">DATABASE_URL</code> in Vercel — see README section
+                &ldquo;Vercel deployment&rdquo;). Everything activates automatically after that.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {firebaseConfigured ? (
         <GoogleSignInButton />
       ) : (
