@@ -65,16 +65,21 @@ export function AuthForm({
   return (
     <div className="glass rounded-[1.75rem] p-6 sm:p-8">
       {!databaseConfigured && (
-        <div className="mb-5 rounded-2xl border border-warning/30 bg-warning/10 p-4" role="note">
+        <div className="mb-5 rounded-2xl border border-accent/30 bg-accent/10 p-4" role="note">
           <div className="flex items-start gap-2.5">
-            <Database className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
+            <Database className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
             <div>
-              <p className="text-sm font-semibold text-warn">Database not connected on this deployment</p>
+              <p className="text-sm font-semibold text-accent">One-time setup needed</p>
               <p className="mt-1 text-[13px] leading-relaxed text-sub">
-                Sign-in can&rsquo;t work until the site owner attaches a Postgres database
-                (<code className="font-mono text-ink">DATABASE_URL</code> in Vercel — see README section
-                &ldquo;Vercel deployment&rdquo;). Everything activates automatically after that.
+                Paste your Supabase connection string to connect the database.
+                It takes 30 seconds — everything else works automatically.
               </p>
+              <a
+                href="/setup"
+                className="mt-2 inline-flex h-9 items-center rounded-full bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-deep"
+              >
+                Connect database →
+              </a>
             </div>
           </div>
         </div>
