@@ -10,6 +10,22 @@ const { url: databaseUrl, source } = resolvePostgresUrl();
 
 if (!databaseUrl) {
   console.warn("[db] No Postgres connection string found (DATABASE_URL / SUPABASE_POSTGRES_URL / POSTGRES_URL) — database calls will fail until one is configured.");
+} else if (source) {
+  console.log(`[db] Using Postgres connection from ${source}`);
+}
+
+/* Hosted Postgres (Supabase incl. poolers) requires TLS; localhost in dev
+ * does not. rejectUnauthorized:false matches Supabase's documented pg
+ * guidance for server clients without the CA bundle. */
+function needsTls(url: string): boolean {
+  try {
+    const h = new URL(url).hostname;
+    if (h === "localhost" || h === "127.0.0.1" || h === "::1") return false;
+    if (/sslmode=disable/.test(url)) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const globalForDb = globalThis as typeof globalThis & {
@@ -20,7 +36,8 @@ export const pool =
   globalForDb.__arenaNextJsPostgresqlPool ??
   new Pool({
     connectionString: databaseUrl ?? "postgresql://localhost:5432/lifeos_missing_config",
-    connectionTimeoutMillis: 3000,
+    connectionTimeoutMillis: 5000,
+    ...(databaseUrl && needsTls(databaseUrl) ? { ssl: { rejectUnauthorized: false } } : {}),
   });
 
 if (process.env.NODE_ENV !== "production") {
