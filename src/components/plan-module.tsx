@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, CalendarCheck2, CheckIcon, Flame, ListChecks, Minus, Pencil, Plus, RotateCcw, Search, Sparkles, Target, Trash2 } from "lucide-react";
 import { api } from "@/lib/client-api";
-import type { GoalDTO, HabitDTO, TaskDTO } from "@/lib/dto";
+import type { GoalDTO, HabitDTO, TaskDTO } from "@/lib/dto-types";
 import { addDays, formatDateHuman, parseTimeToMin, timeLabel } from "@/lib/dates";
 import { TaskForm, type GoalOption } from "@/components/task-form";
 import { Badge, Button, ConfirmDialog, EmptyState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, Textarea, cn, useToast } from "@/components/ui";

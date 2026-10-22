@@ -1,15 +1,16 @@
-import type { User } from "@/db/schema";
-
 /* Transparent, rule-based personalization. No fabricated "AI": these are
- * explicit, readable rules applied to the user's own onboarding answers. */
+ * explicit, readable rules applied to the user's own onboarding answers.
+ *
+ * NOTE: this file must NOT import from @/db/schema because it is used by
+ * "use client" components. Type shapes are inlined below. */
 
-export function displayName(user: Pick<User, "name" | "nickname">): string {
+export function displayName(user: { name: string; nickname?: string | null }): string {
   if (user.nickname && user.nickname.trim()) return user.nickname.trim();
   const first = (user.name || "").trim().split(/\s+/)[0];
   return first || "there";
 }
 
-export function greetingFor(user: Pick<User, "name" | "nickname">, minutesOfDay: number): string {
+export function greetingFor(user: { name: string; nickname?: string | null }, minutesOfDay: number): string {
   const name = displayName(user);
   if (minutesOfDay < 5 * 60) return `Up late, ${name}?`;
   if (minutesOfDay < 12 * 60) return `Good morning, ${name}`;
@@ -56,7 +57,7 @@ export function suggestedHabits(focus: readonly string[]): { name: string; days:
 }
 
 /* Sleep schedule defaults pulled from onboarding answers. */
-export function sleepDefaults(user: Pick<User, "schedule">): { bedtime: string; wakeTime: string } {
+export function sleepDefaults(user: { schedule?: { wakeTime?: string; bedTime?: string } | null }): { bedtime: string; wakeTime: string } {
   const wake = user.schedule?.wakeTime;
   const bed = user.schedule?.bedTime;
   return {
@@ -79,7 +80,7 @@ export function situationLabel(key: string | null | undefined): string | null {
 }
 
 /* A single honest, rule-based planning hint for the Today dashboard. */
-export function planningHint(user: Pick<User, "planningStyle" | "schedule">, pendingCount: number): string {
+export function planningHint(user: { planningStyle: string; schedule?: { wakeTime?: string; bedTime?: string } | null }, pendingCount: number): string {
   if (pendingCount === 0) {
     return user.planningStyle === "structured"
       ? "Your structured day is clear — a good moment to plan tomorrow."

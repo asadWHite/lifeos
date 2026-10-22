@@ -158,6 +158,16 @@ export function AuthForm({
           {mode === "signin" ? "Sign in to LifeOS" : "Create my account"}
         </Button>
       </form>
+
+      <div className="mt-5 border-t border-[var(--c-line)] pt-5 text-center">
+        <a
+          href="/preview/today"
+          className="inline-flex items-center gap-2 text-sm font-medium text-sub transition-colors hover:text-ink"
+        >
+          <span className="grid size-6 place-items-center rounded-full bg-accent/15 text-accent text-xs">▶</span>
+          Preview the app without signing in
+        </a>
+      </div>
     </div>
   );
 }

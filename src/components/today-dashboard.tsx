@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BedDouble, CheckIcon, MoonStar, Pencil, Plus, Waves } from "lucide-react";
 import { api } from "@/lib/client-api";
-import type { HabitDTO, SleepScheduleDTO, SleepSessionDTO, TaskDTO } from "@/lib/dto";
+import type { HabitDTO, SleepScheduleDTO, SleepSessionDTO, TaskDTO } from "@/lib/dto-types";
 import { formatDuration, parseTimeToMin, timeLabel, weekdayOf } from "@/lib/dates";
 import { isOverdueWithinDay, pickCurrentActivity, pickNextActivity, sortForTimeline } from "@/lib/stats";
 import { STATUS_LABEL, type SleepStatus } from "@/lib/sleep";

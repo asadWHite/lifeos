@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/client-api";
-import type { TaskDTO } from "@/lib/dto";
+import type { TaskDTO } from "@/lib/dto-types";
 import { Button, ConfirmDialog, Field, Input, Modal, Select, SegmentedControl, Textarea, useToast } from "@/components/ui";
 import { CATEGORIES, PRIORITIES } from "@/lib/validation";
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AlarmClockCheck, BedDouble, CalendarPlus, MoonStar, Pencil, Smartphone, Trash2 } from "lucide-react";
 import { api } from "@/lib/client-api";
-import type { SleepScheduleDTO } from "@/lib/dto";
+import type { SleepScheduleDTO } from "@/lib/dto-types";
 import { formatDuration, timeLabel } from "@/lib/dates";
 import { STATUS_LABEL, targetSleepMin, type SleepStatus } from "@/lib/sleep";
 import { BarsChart, type BarDatum } from "@/components/charts";
